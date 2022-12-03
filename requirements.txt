@@ -6,11 +6,3 @@ ipywidgets==7.6.5
 matplotlib==3.4.3
 pandas==1.3.3
 voila==0.3.6
-IPython
-time
-datetime
-ipydatetime
-calendar
-os
-pickle
-operator
