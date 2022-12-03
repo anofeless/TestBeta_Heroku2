@@ -1,1 +1,1 @@
-voila --port=$PORT --no-browser --Voila.ip=0.0.0.0 Interfaz.ipynb
+voila --port=$PORT --no-browser Interfaz.ipynb
