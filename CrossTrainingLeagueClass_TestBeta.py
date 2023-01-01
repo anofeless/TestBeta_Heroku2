@@ -11,6 +11,9 @@ from ipywidgets import interact, interactive, fixed, interact_manual, FloatSlide
 from ipywidgets import ToggleButton, SelectionSlider, FloatText, jslink, Select, HTML, Image, Button, Tab
 import numpy as np
 # Import libraries
+import string
+import configparser
+import bcrypt
 import time
 import datetime
 import ipydatetime
@@ -25,33 +28,39 @@ from operator import itemgetter
 class CrossTrainingLeague_ZGZ(object):
     
     def __init__(self):
-        BoxList=['PoloBox','White','Independiente']
+        BoxList=['Eolo','Cierzo','Wonkru','Hiberus','Box&Fitness','Utgard','Devil','Tutanza','OneLeague']
         BoxList.sort()
         
-        self.BoxListHost=['PoloBox','White','Independiente']
+        self.BoxListHost=['Eolo','Cierzo','Wonkru','Hiberus','Box&Fitness','Utgard','Devil','Tutanza','OneLeague']
+        self.BoxListHost.sort()
         #self.BoxListHostCompetitionHours=
-        self.CategoryList=['Scaled-Base','Scaled-Advance','NotScaled-Base','NotScaled-Advance']
+        self.CategoryList=['Escalado','Pro','Rx']
+        self.savedeleteControl=False
+        self.pos_textoaviso=0
+
         
-        
-        self.stafigure=[None,None]
-        
+        #self.stafigure=[None,None] # Este es el original para plotear RawData y ScaledData
+        self.stafigure=[None]
+        style = {'description_width': '110px'}
         # Widgets for the Log In Window
         self.UserName=widgets.Text(
-        value='User Name',
-        placeholder='Type something',
-        description='UserName:',
+        value='',
+        placeholder='',
+        description='Nombre usuario',
         disabled=False,
         layout=Layout(width='auto', grid_area='UserName'),
+        style=style
         )
         self.PassWord=widgets.Password(
         value='********',
-        description='Password:',
+        description='Contraseña',
         disabled=False,
         layout=Layout(width='auto', grid_area='PassWord'),
+        style=style
         )
         self.LogIn=widgets.Button(
                     value=False,
-                    description='Log in',
+                    description='Acceder',
                     disabled=False,
                     indent=False,
                     layout=Layout(width='auto', grid_area='LogIn'),
@@ -60,65 +69,83 @@ class CrossTrainingLeague_ZGZ(object):
         
         # Widgets to create a new user
         self.NewUserName=widgets.Text(
-        value='User Name',
-        placeholder='Type something',
-        description='UserName:',
+        value='',
+        placeholder='',
+        description='Nombre usuario',
         disabled=False,
         layout=Layout(width='auto', grid_area='NewUserName'),
+        style=style
         )
-        self.NewPassWord=widgets.Password(
+        
+        
+        self.NewOjo=widgets.Password(
         value='********',
-        description='Password:',
+        description='Contraseña',
         disabled=False,
-        layout=Layout(width='auto', grid_area='NewPassWord'),
+        layout=Layout(width='auto', grid_area='NewOjo'),
+        style=style
         
         )
-        self.ConfirmPassWord=widgets.Password(
+
+        self.ConfirmOjo=widgets.Password(
         value='********',
-        placeholder='Confirm password',
-        description='Confirm Password',
+        description='Repetir contraseña',
         disabled=False,
-        layout=Layout(width='auto', grid_area='ConfirmPassWord'),
+        layout=Layout(width='auto', grid_area='ConfirmOjo'),
+        style=style
         )
         self.Box=widgets.Dropdown(
         options=BoxList,
         value=BoxList[0],
-        description='HomeBox',
+        description='Box',
         layout=Layout(width='auto', grid_area='Box'),
+        style=style
         #layout=Layout(width='max-content', grid_area='Box'),
         )
+        
+        self.AccessCode=widgets.Text(
+        value='',
+        placeholder='',
+        description='Código',
+        disabled=False,
+        layout=Layout(width='auto', grid_area='AccessCode'),
+        style=style
+        )
+        
+        
         self.DateOfBirth=widgets.DatePicker(
-        description='Birth date',
+        description='Fecha de nacimiento',
         disabled=False,
         layout=Layout(width='auto', grid_area='DateOfBirth'),
+        style=style
         )
         self.Gender=widgets.Dropdown(
-        options=[('Female', 'M'),('Male', 'H')],
+        options=[('Femenina', 'M'),('Masculina', 'H')],
         value='M',
-        description='Gender',
+        description='División',
         #layout=Layout(width= 'max-content', grid_area='Gender'),
         layout=Layout(width='auto', grid_area='Gender'),
+        style=style
         #layout=Layout({'width': 'max-content'}, grid_area='Gender'),
         )
         
         self.heigth=widgets.IntText(
         value=0,
-        description='Heigth[cm]',
+        description='Altura[cm]',
         disabled=False,
         layout=Layout(width='auto', grid_area='heigth'),
         )   
         self.weight=widgets.IntText(
         value=0,
-        description='Weight[Kg]',
+        description='Peso[Kg]',
         disabled=False,
         layout=Layout(width='auto', grid_area='weight'),
         )   
-        style = {'description_width': '50px'}
-        #Avocado
+        #style = {'description_width': '100px'}
         self.Category=widgets.Dropdown(
         options=self.CategoryList,
         value=self.CategoryList[0],
-        description='Category',
+        description='Categoría',
         #indent=False,
         #layout=Layout(width='auto', grid_area='Category'),
         layout=Layout(width='max-content', grid_area='Category'),
@@ -127,17 +154,26 @@ class CrossTrainingLeague_ZGZ(object):
         
         self.CreateNewUserButton=widgets.Button(
                     value=False,
-                    description='Create New User',
+                    description='Crear Atleta',
                     disabled=False,
-                    indent=False,
+                    #indent=False,
                     layout=Layout(width='auto', grid_area='CreateNewUser'),
+                    
+        )
+        self.CreateNewOwnerButton=widgets.Button(
+                    value=False,
+                    description='Crear Box',
+                    disabled=False,
+                    #indent=False,
+                    layout=Layout(width='auto', grid_area='CreateNewOwner'),
                     
         )
         
         self.CreateNewUserButton.on_click(self.CreateNewUser)
+        self.CreateNewOwnerButton.on_click(self.CreateNewUser)
         
         self.WindowToPlot=widgets.Dropdown(
-        options=['None','UserProfile', 'LeaderBoard', 'LeagueCalendar'],
+        options=['None','Perfil Usuario', 'Clasificación', 'Calendario'],
         value='None',
         description='Tab:',
         disabled=False,
@@ -151,14 +187,49 @@ class CrossTrainingLeague_ZGZ(object):
                     layout=Layout(width='auto', grid_area='AvisoUserCreated'),
                     )
                         
-        
-        
+        self.AvisoLogin=widgets.HTML(
+                    value="<b></b>",
+                    placeholder='',
+                    description='',
+                    indent=False,
+                    layout=Layout(width='auto', grid_area='AvisoLogin'),
+                    )
+        self.AvisoInvitationCreated=widgets.HTML(
+                    value="<b></b>",
+                    placeholder='',
+                    description='',
+                    indent=False,
+                    layout=Layout(width='auto', grid_area='AvisoInvitationCreated'),
+                    )
+
+        self.NombreMes=widgets.HTML(
+                    value="<b>ENERO</b>",
+                    placeholder='',
+                    description='',
+                    indent=False,
+                    layout=Layout(width='auto', grid_area='AvisoInvitationCreated'),
+                    )
+                        
+        self.HeaderHost=widgets.HTML(
+                    value="<b>Anfitriones</b>",
+                    placeholder='',
+                    description='',
+                    indent=False,
+                    layout=Layout(width='auto', grid_area='Anfitriones',border='solid'),
+                    )
+        self.HeaderGuest=widgets.HTML(
+                    value="<b>Visitantes</b>",
+                    placeholder='',
+                    description='',
+                    indent=False,
+                    layout=Layout(width='auto', grid_area='Visitantes',border='solid'),
+                    )
         
         
         
         self.check=widgets.Checkbox(
                     value=False,
-                    description='Plot Statistics',
+                    description='Dibujar estadísticas',
                     disabled=True,
                     indent=False
                     
@@ -166,38 +237,38 @@ class CrossTrainingLeague_ZGZ(object):
         
 
 
-        # Widgets for WODs & Callenges
+        # Widgets for WODs & Callenges # Avocado --> Aqúi se crean los wods, fechas etc..
         # TODA ESTA PARTE TIENE QUE QUEDAR COMPLETAMENTE DEFINIDA ANES DEL INICIO DE LA COMPETICIÓN (LOS VIDEO E IMÁGENES ASOCIADAS A LOS WOD CUANDO LLEGUE LA FECHA DEL MES)
-        self.CalendarMonths=['Semana1_1','Semana1_2'] # Hay que editar el self.Monthsgrid en consecuencia
+        self.CalendarMonths=['Enero'] # avocado -Hay que editar el self.Monthsgrid en consecuencia
         self.currentDate=datetime.date.today()
         self.currentMonth=datetime.date.today().month
-        self.StartDate=datetime.date(2022,11,21)
-        self.CalendarEndDates=[datetime.date(2022,11,28),datetime.date(2022,12,15)]
-        self.WodNames=[ ['AlphaTest-1-PartA','AlphaTest-1-PartB'],
-                         ['AlphaTest-2-PartA','AlphaTest-2-PartB'],
-                          ]
+        self.StartDate=datetime.date(2022,11,30)
+        self.CalendarEndDates=[datetime.date(2022,12,30)]
+        self.WodNames=[ ['Wod1-A','Wod1-B','Wod2-A','Wod2-B','Wod3']] # Cada lista representa un mes, si hay mas meses se añade otra lista dentro (Weven Wod 1 A&B are performed together, here they are typed as individuals since each part is independent for the leaderboard)
+        self.UniqueWodNames=[ ['Wod1','Wod2','Wod3']] # Unique wod names, these will be the options available for the owners to generate invitations (Same strcuture as self.WodNames)
+        self.SharedWod=[ [None,None,[1,2]]] # For each unique WodName here is defined wich of them is common for two or more categories. If [], the wod is unique for each one, of [0,1], the wod will be the same for category 0 and 1 as defined in categories list
                         
         
         # Youtube ID video associated to each wod
-        self.YoutubeIDs=[ ["B58OYKDwV7w","B58OYKDwV7w"],
-                         ["t-eRnB9pRNw","t-eRnB9pRNw"],
-                         
+        self.YoutubeIDs=[ ["d_78hCLPITs","d_78hCLPITs","d_78hCLPITs","d_78hCLPITs","d_78hCLPITs"]
                          ]
         
         # Type of mark of every Wod
-        self.markType=[ ["Kgs","Time"],
-                         ["Reps","Time"],
-                         
-                         ]
+        self.markType=[ ["Kgs","Time","Reps","Time","Reps"]
+                       ]
         
         # Active months para ir activando los meses con sus wods etc.. cuando llegue la fecha
         #self.ActiveMonths=['Semana1','Semana2']
         m=0
+        
+        # Comento esta parte de momento para que no falle al terminar el mes
+        '''
         for i in range(len(self.CalendarEndDates)):
             if(self.CalendarEndDates[i]<self.currentDate):
                 m+=1
+        '''
         self.ActiveMonths=self.CalendarMonths[0:m+1]
-        
+
         # Hacer plana la lista de WodNames para crear las entradas en la base de datos
         self.WodNamesFlat=[]
         for fila in range(len(self.WodNames)):
@@ -207,56 +278,11 @@ class CrossTrainingLeague_ZGZ(object):
         for fila in range(len(self.ActiveMonths)):
                 for columna in range(len(self.WodNames[fila])):
                     self.ActiveWodNamesFlat.append(self.WodNames[fila][columna])
-        self.WODcaledarOptions=self.WodNames[m]
+        #self.WODcaledarOptions=self.WodNames[m]
 
+        self.WODcaledarOptions=self.UniqueWodNames[m]
+        self.sharedWodcaledarOptions=self.SharedWod[m]
                
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-               
-        #self.WodsDescription=['September2022','October2022','November2022','December2022','January2023','February2023','March2023','April2023']
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         #print('Initialization')
         #%% CREACION PERFILES DE USUARIO (STATIC)
@@ -278,7 +304,7 @@ class CrossTrainingLeague_ZGZ(object):
         HeroWODs_BenchM=['Fran','FriendlyFran','Murph','Cindy']
         Other_BenchM=['5kmrun','100mswim']
         # Aquí genero 
-        self.UserBenchMarksDict={"Strength":dict.fromkeys(self.Strength_BenchM),"Haltero":dict.fromkeys(Haltero_BenchM)}
+        self.UserBenchMarksDict={"Fuerza":dict.fromkeys(self.Strength_BenchM),"Halterofilia":dict.fromkeys(Haltero_BenchM)}
     
         # This static list will be genraed as new users create an account in the platform
         self.UserNamesList=[]
@@ -295,8 +321,10 @@ class CrossTrainingLeague_ZGZ(object):
         # De momento lo meto así para generar Dummy automatico, el orden es por usuarioy dentro sel orden que aparece en self.UserBenchMarksDict
         Inputs_Benchmarks=[ [[130,170,105,85,65],[71,100,77,95,95]],  [[90,90,60,55,38],[42,55,38,52,51]],[[120,190,95,95,58],[80,100,80,95,95]] ,[[165,220,110,95,75],[88,110,85,105,98]] ,[[125,170,90,80,60],[70,95,65,95,95]] , [[140,200,105,105,65],[93,105,87,115,115]], [[130,200,105,100,75],[88,110,85,100,105]] ,[[80,80,62,50,51],[38,61,42,52,47]],[[64. , 64. , 49.6, 40. , 40.8],
                [30.4, 48.8, 33.6, 41.6, 37.6]],[[64. , 64. , 49.6, 40. , 40.8],[30.4, 48.8, 33.6, 41.6, 37.6]],[[64. , 64. , 49.6, 40. , 40.8],[30.4, 48.8, 33.6, 41.6, 37.6]],[[64. , 64. , 49.6, 40. , 40.8],[30.4, 48.8, 33.6, 41.6, 37.6]]]  
+        
         self.Inputs_BenchmarksInit=[[[1,1,1,1,1],[1,1,1,1,1]]]
         self.DataBase={}
+        self.DataBaseOwners={}
         '''
         # Loop to create the data base.
         self.DataBase={}
@@ -319,11 +347,11 @@ class CrossTrainingLeague_ZGZ(object):
             for w3,result in enumerate(zip(self.WodNamesFlat.copy(),UserWodEntries.copy()[w1])):
                 self.DataBase[userName]['WODmarks'][result[0]]= result[1]
                 self.DataBase[userName]['RawWODmarks'][result[0]]= str(result[1])
-            for w4,points in enumerate(zip(self.WodNamesFlat.copy(),UserWodPoints.copy()[w1])):
+            for w4,points in enumerate(zip(self.WodNamesFlat.copy(),UserWodPoints.copy()[w1]))
                 self.DataBase[userName]['WODpoints'][points[0]]= points[1] 
                 self.DataBase[userName]['WODpositions'][points[0]]= '---'  
                 self.DataBase[userName]['WodResultsYoutube'][points[0]] = '---'                
-# User becnhMarks                   
+            # User becnhMarks                   
             # User becnhMarks
             for key in enumerate(self.UserBenchMarksDict.copy().keys()):
 
@@ -334,8 +362,10 @@ class CrossTrainingLeague_ZGZ(object):
         if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
             with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
                 self.DataBase=pickle.load(fin)
-            
-
+        if os.path.exists(os.path.join(os.getcwd(),'DataBaseOwners.users')):
+            with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'rb') as fin:
+                self.DataBaseOwners=pickle.load(fin)    
+ 
         self.DummyWidget=widgets.Output()
         with self.DummyWidget:
             display()
@@ -351,7 +381,7 @@ class CrossTrainingLeague_ZGZ(object):
         )
         self.EnterNewPR=widgets.Button(
         value=False,
-        description='Save new PR',
+        description='Guardar',
         disabled=False,
         button_style='', # 'success', 'info', 'warning', 'danger' or ''
         #tooltip='Description',
@@ -361,7 +391,7 @@ class CrossTrainingLeague_ZGZ(object):
         #print('Ha entrado al widgets_functon')
         self.NewPR=widgets.FloatText(
         value=0.0,
-        description='New PR:',
+        description='PR:',
         disabled=False,
         #layout={'width': 'max-content'}
         layout=Layout(width='auto'),
@@ -425,125 +455,161 @@ class CrossTrainingLeague_ZGZ(object):
         # Define tab structure
         self.grid = widgets.Tab() #layout=Layout(height="1500px"))
             
-        self.grid.titles=['Log in','Create New User']
+        self.grid.titles=['Acceso','Crear Atleta','Crear Box']
 
-        LogIngrid=GridBox(children=[self.UserName,self.LogIn],
+        LogIngrid=GridBox(children=[self.UserName,self.PassWord,self.LogIn,self.AvisoLogin],
                       layout=Layout(
                           width='auto',
                           grid_template_columns='auto',
-                          grid_template_rows='auto auto',
+                          grid_template_rows='auto auto auto auto',
                           grid_template_areas='''
                             "UserName"
+                            "PassWord"
                             "LogIn"
+                            "AvisoLogin"
                             '''
                           )
                      ) 
 
-        
-        NewUsergrid=widgets.GridBox(children=[self.NewUserName,self.CreateNewUserButton,self.DateOfBirth,self.Gender,self.heigth,self.weight,self.Box,self.Category,self.AvisoUserCreated],
+
+        NewUsergrid=widgets.GridBox(children=[self.NewUserName,self.NewOjo,self.ConfirmOjo,self.DateOfBirth,self.Gender,self.Box,self.AccessCode,self.Category,self.CreateNewUserButton,self.AvisoUserCreated],
                       layout=widgets.Layout(
                           width='auto',
-                          grid_template_rows='auto auto auto auto auto auto auto auto auto',
+                          grid_template_rows='auto auto auto auto auto auto auto auto auto auto',
                           grid_template_columns='auto',
                           grid_template_areas='''
                             "NewUserName"
-                            "Gender"
+                            "NewOjo"
+                            "ConfirmOjo"
                             "DateOfBirth"
-                            "heigth"
-                            "weight"
+                            "Gender"
                             "Box"
+                            "AccessCode"
                             "Category"
                             "CreateNewUser"
                             "AvisoUserCreated"
                             ''')
-                                ) 
+                                )
+        NewBoxOwnergrid=widgets.GridBox(children=[self.NewUserName,self.NewOjo,self.ConfirmOjo,self.Box,self.AccessCode,self.CreateNewOwnerButton,self.AvisoUserCreated],
+                      layout=widgets.Layout(
+                          width='auto',
+                          grid_template_rows='auto auto auto auto auto auto auto',
+                          grid_template_columns='auto',
+                          grid_template_areas='''
+                            "NewUserName"
+                            "NewOjo"
+                            "ConfirmOjo"
+                            "Box"
+                            "AccessCode"
+                            "CreateNewOwner"
+                            "AvisoUserCreated"
+                            ''')
+                                )                        
         for i, title in enumerate(self.grid.titles):
             self.grid.set_title(i, title)
-        self.grid.children=[LogIngrid,NewUsergrid]
+        self.grid.children=[LogIngrid,NewUsergrid,NewBoxOwnergrid]
         
         
         #Check if the username is in the DataBase and confirm the password to show the user interface
         def checkAccess(b):
-            # FALATA AÑADIR EL CHEQUEO DE PASSWORD, TENGO QUE MIRAR COMO GUARDARLOS DE  FORMA SEGURA Y SIN TEXTO PLANO
-            if(self.UserName.value in self.DataBase.keys()):
+            if((self.UserName.value in self.DataBase.keys() and bcrypt.checkpw(bytes(self.PassWord.value,'utf-8'), self.DataBase[self.UserName.value]['ojos'])) or (self.UserName.value in self.DataBaseOwners.keys() and bcrypt.checkpw(bytes(self.PassWord.value,'utf-8'), self.DataBaseOwners[self.UserName.value]['ojos'])) ): #Curro
+                
+            
+                if(self.UserName.value in self.DataBase.keys() and bcrypt.checkpw(bytes(self.PassWord.value,'utf-8'), self.DataBase[self.UserName.value]['ojos'])):
+                    self.typeUser='Atleta'
+
+                    #print(self.typeUser,self.DataBase[self.UserName.value]['Definition']['HomeBox'])
+                else:
+                    self.typeUser='Owner'
+
+                def rankmin(x):
+                    u, inv, counts = np.unique(x, return_inverse=True, return_counts=True)
+                    csum = np.zeros_like(counts)
+                    csum[1:] = counts[:-1].cumsum()
+                    return csum[inv]
+                    #print(self.typeUser,self.DataBaseOwners[self.UserName.value]['HomeBox'])
+                    
+                
                 titles=[]
                 children=[]
-                # Defino un gridspeclayout para ahí definir el GridBox, con GridBox sólo no se actualiza
-                self.UserProfile_grid = GridspecLayout(2, 8)
-                titles.append('UserProfile')
-                children.append(self.UserProfile_grid)
-                
-                self.plotUserProfile(name=self.widgets_dict['UserName'].value,benchmarkType=self.widgets_dict["StatsCategory"].value)
-                #TAB para el perfil de usuario
-                def actualizar(valor):
-                    #print('ha entrado a actualizar widget')
-                    entries=list(self.DataBase[self.widgets_dict["UserName"].value]['BenchMarks'][self.widgets_dict["StatsCategory"].value].keys())
-                    #print(entries)
-                    # self.CategoryEtries=widgets.Dropdown(
-                    # options=entries,
-                    # value=entries[0],
-                    # description='PR selection:',
-                    # )
-
-                    # self.widgets_dict["CategoryEtries"]=self.CategoryEtries
-                    self.widgets_dict["CategoryEtries"].options=entries 
-                    self.widgets_dict["CategoryEtries"].index=1
-                    self.plotUserProfile(name=self.widgets_dict['UserName'].value,benchmarkType=self.widgets_dict["StatsCategory"].value)
-                    for i in range(len(self.stafigure)):
-                        self.wid_plot[i].clear_output()
-                        with self.wid_plot[i]:
-                            display(self.stafigure[i]) 
-                self.StatsCategory.observe(actualizar,'value')
-                
-                
-                
-                
-                def EnterNewPR(b):
-                    inicio=time.time()
-                    if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
-                        with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
-                            self.DataBase=pickle.load(fin)
-                    if(self.widgets_dict["NewPR"].value>0):
-                        self.DataBase[self.widgets_dict["UserName"].value]['BenchMarks'][self.widgets_dict["StatsCategory"].value][self.widgets_dict["CategoryEtries"].value]=self.widgets_dict["NewPR"].value
-                    fin=time.time()
-                    #print(fin-inicio)
-                        
-                    self.plotUserProfile(name=self.widgets_dict['UserName'].value,benchmarkType=self.widgets_dict["StatsCategory"].value)
-                    for i in range(len(self.stafigure)):
-                        self.wid_plot[i].clear_output()
-                        with self.wid_plot[i]:
-                            display(self.stafigure[i]) 
-                            
-                            
-                            
-                            
-                    if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
-                        with open(os.path.join(os.getcwd(),'DataBase.users'), 'wb') as fout:
-                                    pickle.dump(self.DataBase, fout)
-                self.EnterNewPR.on_click(EnterNewPR)
-                
-                
-                
-                
-                griduserPLot=GridspecLayout(3, 1)
-                self.wid_plot=[]
-                for i in range(len(self.stafigure)):
-                    self.wid_plot.append(widgets.Output(layout={'border': '1px none black'}))
-                    with self.wid_plot[i]:
-                        display(self.stafigure[i])   
-                    griduserPLot[i,0]=self.wid_plot[i]
+                # This if select wether or not to generate the user profile (if Athlete yes, if Owner not)
+                if(self.typeUser=='Atleta'):
+                    # Defino un gridspeclayout para ahí definir el GridBox, con GridBox sólo no se actualiza
+                    self.UserProfile_grid = GridspecLayout(2, 8)
+                    titles.append('Perfil')
+                    children.append(self.UserProfile_grid)
                     
-                griduser=GridBox(children=[self.StatsCategory,self.widgets_dict['CategoryEtries'],self.NewPR,self.EnterNewPR],
-                layout=Layout(
-                width='auto',
-                grid_template_rows='auto auto auto auto',
-                grid_template_columns='100%',
-                )
-                )
-                
-                
-                self.UserProfile_grid[0,0:3]=griduser
-                self.UserProfile_grid[0:2,3:8]=griduserPLot
+                    self.plotUserProfile(name=self.widgets_dict['UserName'].value,benchmarkType=self.widgets_dict["StatsCategory"].value)
+                    #TAB para el perfil de usuario
+                    def actualizar(valor):
+                        #print('ha entrado a actualizar widget')
+                        entries=list(self.DataBase[self.widgets_dict["UserName"].value]['BenchMarks'][self.widgets_dict["StatsCategory"].value].keys())
+                        #print(entries)
+                        # self.CategoryEtries=widgets.Dropdown(
+                        # options=entries,
+                        # value=entries[0],
+                        # description='PR selection:',
+                        # )
+    
+                        # self.widgets_dict["CategoryEtries"]=self.CategoryEtries
+                        self.widgets_dict["CategoryEtries"].options=entries 
+                        self.widgets_dict["CategoryEtries"].index=1
+                        self.plotUserProfile(name=self.widgets_dict['UserName'].value,benchmarkType=self.widgets_dict["StatsCategory"].value)
+                        for i in range(len(self.stafigure)):
+                            self.wid_plot[i].clear_output()
+                            with self.wid_plot[i]:
+                                display(self.stafigure[i]) 
+                    self.StatsCategory.observe(actualizar,'value')
+                    
+                    
+                    
+                    
+                    def EnterNewPR(b):
+                        #inicio=time.time()
+                        if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
+                            with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
+                                self.DataBase=pickle.load(fin)
+                        if(self.widgets_dict["NewPR"].value>0):
+                            self.DataBase[self.widgets_dict["UserName"].value]['BenchMarks'][self.widgets_dict["StatsCategory"].value][self.widgets_dict["CategoryEtries"].value]=self.widgets_dict["NewPR"].value
+                        fin=time.time()
+                        #print(fin-inicio)
+                            
+                        self.plotUserProfile(name=self.widgets_dict['UserName'].value,benchmarkType=self.widgets_dict["StatsCategory"].value)
+                        for i in range(len(self.stafigure)):
+                            self.wid_plot[i].clear_output()
+                            with self.wid_plot[i]:
+                                display(self.stafigure[i]) 
+                                
+                                
+                                
+                                
+                        if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
+                            with open(os.path.join(os.getcwd(),'DataBase.users'), 'wb') as fout:
+                                        pickle.dump(self.DataBase, fout)
+                    self.EnterNewPR.on_click(EnterNewPR)
+                    
+                    
+                    
+                    
+                    griduserPLot=GridspecLayout(3, 1)
+                    self.wid_plot=[]
+                    for i in range(len(self.stafigure)):
+                        self.wid_plot.append(widgets.Output(layout={'border': '1px none black'}))
+                        with self.wid_plot[i]:
+                            display(self.stafigure[i])   
+                        griduserPLot[i,0]=self.wid_plot[i]
+                        
+                    griduser=GridBox(children=[self.StatsCategory,self.widgets_dict['CategoryEtries'],self.NewPR,self.EnterNewPR],
+                    layout=Layout(
+                    width='auto',
+                    grid_template_rows='auto auto auto auto',
+                    grid_template_columns='100%',
+                    )
+                    )
+                    
+                    
+                    self.UserProfile_grid[0,0:3]=griduser
+                    self.UserProfile_grid[0:2,3:8]=griduserPLot
                 
                 
                 #***********************************************************************
@@ -557,8 +623,15 @@ class CrossTrainingLeague_ZGZ(object):
                 #**********************************************************************************************************************************
                 #**********************************************************************************************************************************
                 # WODs & Callenges
-                self.Wods_grid = GridspecLayout(39,10,width='auto',height='auto')       
-                titles.append('WODs/Challenges')
+                self.Wods_grid = GridspecLayout(39,10,width='auto',height='auto')  
+                if(self.typeUser=='Atleta'):    
+                    self.Category.value=self.DataBase[self.UserName.value]['Definition']['Category']
+
+                elif(self.typeUser=='Owner'):
+                    self.Category.value=self.CategoryList[0]
+                    
+                    
+                titles.append('Wods')
                 children.append(self.Wods_grid)
                 
                 
@@ -598,14 +671,15 @@ class CrossTrainingLeague_ZGZ(object):
                                   width='100%',
                                   height='auto',
                                   grid_template_rows='auto',
-                                  grid_template_columns='auto auto',
+                                  grid_template_columns='auto',
                                   grid_template_areas='''
-                                    "Semana1_1 Semana1_2"
+                                    "Enero"
                                 
                                     ''')) 
                                          
                 self.WodorChallenge=widgets.RadioButtons(
-                options=['Wods', 'Challenges'],
+                #options=['Wods', 'Challenges'],
+                options=['Wods'],
                 description='',
                 orientation='horizontal',
                 disabled=False,
@@ -633,19 +707,22 @@ class CrossTrainingLeague_ZGZ(object):
                 )
                 
                 
-                #self.gridSLMarks= GridspecLayout(3, 3,layout=Layout(width='auto'))   #Avocado
+                #self.gridSLMarks= GridspecLayout(3, 3,layout=Layout(width='auto'))
                 
                 def changeWODorChallenge(valor):
                     style = {'description_width': '35px'}
                     self.AvisoFormato.value="<b></b>"
+
                     file= open(os.path.join(os.getcwd(),self.WodorChaSelection.value+'_'+self.Category.value+'.png'), "rb")
-                    
-                    if((self.Category.value==self.DataBase[self.UserName.value]['Definition']['Category']) and ((self.CalendarEndDates[self.indiceMonth]-datetime.date.today()).days>=0) and (datetime.date.today()>=self.StartDate) ):
-                    #if((self.Category.value==self.DataBase[self.UserName.value]['Definition']['Category']) and (self.DataBase[self.widgets_dict['UserName'].value]['WODmarks'][self.WodorChaSelection.value]==None) ):
+                    if(self.typeUser=='Owner'):
+                        Disabled=True
+                        
+                    elif((self.Category.value==self.DataBase[self.UserName.value]['Definition']['Category']) and ((self.CalendarEndDates[self.indiceMonth]-datetime.date.today()).days>=0) and (datetime.date.today()>=self.StartDate) ):
+
                         Disabled=False
                     else:
                         Disabled=True
-                    #Avocado
+
                     self.youIDwidget.disabled=Disabled
                     '''
                     self.youIDwidget=widgets.Text(
@@ -665,7 +742,7 @@ class CrossTrainingLeague_ZGZ(object):
                     vid=YouTubeVideo(video,width=320)
                     tipoWod=self.markType[self.indiceMonth][indice]
                     if(tipoWod=='Reps' or tipoWod=='Kgs'): 
-                        #Avocado
+
                         self.Wods_grid[3,0:4]=widgets.IntText(
                                 value=0,
                                 description=tipoWod,
@@ -711,10 +788,11 @@ class CrossTrainingLeague_ZGZ(object):
 
                     
 
-                    
+                   # Hasta aqui ahora trbajando 
                     
                     
                 self.WodorChaSelection.observe(changeWODorChallenge,'value')
+
                 self.Category.observe(changeWODorChallenge,'value')
                 self.indiceMonth=0
                 indice=self.WodNames[self.indiceMonth].index(self.WodorChaSelection.value)
@@ -724,15 +802,19 @@ class CrossTrainingLeague_ZGZ(object):
                 self.wid_Youtube=widgets.Output(layout=Layout(width='auto',height='auto'))
                 with self.wid_Youtube:
                     display(vid)  
+                if(self.typeUser=='Atleta'):    
                 
-                if(self.Category.value==self.DataBase[self.UserName.value]['Definition']['Category']):
-                    Disabled=False
-                else:
-                    Disabled=True
-                #Avocado
+                    if(self.Category.value==self.DataBase[self.UserName.value]['Definition']['Category']  and ((self.CalendarEndDates[self.indiceMonth]-datetime.date.today()).days>=0) and (datetime.date.today()>=self.StartDate)):
+                        Disabled=False
+                    else:
+                        Disabled=True
+                elif(self.typeUser=='Owner'):
+                        Disabled=True
+                        
+
                 style = {'description_width': '35px'}
                 
-                #Avocado
+
                 self.youIDwidget=widgets.Text(
                         value='',
                         description='URL',
@@ -745,7 +827,7 @@ class CrossTrainingLeague_ZGZ(object):
                         
                 self.Wods_grid[4,0:7]=self.youIDwidget
                 if(self.markType[0][0]=='Reps' or self.markType[0][0]=='Kgs'): 
-                    #Avocado
+
                     self.Wods_grid[3,0:4]=widgets.IntText(
                             value=0,
                             description=self.markType[0][0],
@@ -786,10 +868,10 @@ class CrossTrainingLeague_ZGZ(object):
                     '''
                 #self.gridSLMarks[0,0]=
 
-                #Avocado
+
                 self.Wods_grid[5,0:7]=widgets.Button(
                                     value=False,
-                                    description='Enter result',
+                                    description='Guardar resultado',
                                     disabled=False,
                                     indent=False,
                                     layout=Layout(width='auto', grid_area='LogIn'),
@@ -798,7 +880,7 @@ class CrossTrainingLeague_ZGZ(object):
                             )
                 
                 
-                #Avocado        
+
                 self.AvisoFormato=widgets.HTML(
                             value="<b></b>",
                             placeholder='',
@@ -817,19 +899,25 @@ class CrossTrainingLeague_ZGZ(object):
                         with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
                             self.DataBase=pickle.load(fin)
                             
-                    
+                    #time.sleep(15)
                     if((self.CalendarEndDates[self.indiceMonth]-datetime.date.today()).days>=0):
                     #if(self.DataBase[self.widgets_dict['UserName'].value]['WODmarks'][self.WodorChaSelection.value]==None):
                         indice=self.WodNames[self.indiceMonth].index(self.WodorChaSelection.value)
                         
-                        if(self.markType[self.indiceMonth][indice]=='Reps'):     
-                            self.DataBase[self.widgets_dict['UserName'].value]['WODmarks'][self.WodorChaSelection.value]=self.Wods_grid[3,0:4].value
-                            self.DataBase[self.widgets_dict['UserName'].value]['RawWODmarks'][self.WodorChaSelection.value]=str(self.Wods_grid[3,0:4].value)
-                            self.AvisoFormato.value="<b>Data saved</b>"
-                        if(self.markType[self.indiceMonth][indice]=='Kgs'):     
-                            self.DataBase[self.widgets_dict['UserName'].value]['WODmarks'][self.WodorChaSelection.value]=self.Wods_grid[3,0:4].value
-                            self.DataBase[self.widgets_dict['UserName'].value]['RawWODmarks'][self.WodorChaSelection.value]=str(self.Wods_grid[3,0:4].value)
-                            self.AvisoFormato.value="<b>Data saved</b>"
+                        if(self.markType[self.indiceMonth][indice]=='Reps'):  
+                            if(self.Wods_grid[3,0:4].value>10000):
+                                self.AvisoFormato.value="<b>Not valid data</b>"
+                            else:
+                                self.DataBase[self.widgets_dict['UserName'].value]['WODmarks'][self.WodorChaSelection.value]=self.Wods_grid[3,0:4].value
+                                self.DataBase[self.widgets_dict['UserName'].value]['RawWODmarks'][self.WodorChaSelection.value]=str(self.Wods_grid[3,0:4].value)
+                                self.AvisoFormato.value="<b>Data saved</b>"
+                        if(self.markType[self.indiceMonth][indice]=='Kgs'):  
+                            if(self.Wods_grid[3,0:4].value>10000):
+                                self.AvisoFormato.value="<b>Not valid data</b>"
+                            else:
+                                self.DataBase[self.widgets_dict['UserName'].value]['WODmarks'][self.WodorChaSelection.value]=self.Wods_grid[3,0:4].value
+                                self.DataBase[self.widgets_dict['UserName'].value]['RawWODmarks'][self.WodorChaSelection.value]=str(self.Wods_grid[3,0:4].value)
+                                self.AvisoFormato.value="<b>Data saved</b>"
                         if(self.markType[self.indiceMonth][indice]=='Time'):   
                             # Arreglar en caso de que metan mas de dos cifras
                             minutos=self.Wods_grid[3,0:4].value
@@ -896,20 +984,28 @@ class CrossTrainingLeague_ZGZ(object):
                             
                 )
                 
-                
+                if(self.typeUser=='Atleta'):    
+                    valuecat=self.DataBase[self.UserName.value]['Definition']['Category']
+                    valuegen=self.DataBase[self.UserName.value]['Definition']['Gender']
+
+                elif(self.typeUser=='Owner'):
+                    valuecat='Pro'
+                    valuegen='Mix'
+                        
                 self.Category_LeaderBoard=widgets.Dropdown(
                 options=self.CategoryList,
-                value=self.DataBase[self.UserName.value]['Definition']['Category'],
-                description='Category',
+                value=valuecat,
+                description='Categoría',
                 layout=Layout(width='auto', grid_area='Category_LeaderBoard'),
                 )
                 
-                
+                stylegenlead = {'description_width': '48px'}
                 self.Gender_LeaderBoard=widgets.Dropdown(
-                options=[('Female', 'M'),('Male', 'H')],
-                value=self.DataBase[self.UserName.value]['Definition']['Gender'],
-                description='Gender',
+                options=[('Mixta','Mix'),('Femenina', 'M'),('Masculina', 'H')],
+                value=valuegen,
+                description='División',
                 layout=Layout(width='auto', grid_area='Gender_LeaderBoard'),
+                style=stylegenlead
                 )
                 
                 
@@ -928,97 +1024,84 @@ class CrossTrainingLeague_ZGZ(object):
                     Category=self.Category_LeaderBoard.value
                     Gender=self.Gender_LeaderBoard.value
                     video=self.Video_LeaderBoard.value
-                    ResultadosNotScaledBaseMen=[]
+                    #ResultadosNotScaledBaseMen=[]
                     KeysNotScaledBaseMen=[]
                     Resultados=[]
+                    Color=[]
                     #self.rawMarks=[]
                     Names=[]
-                    ResultadosNotScaledBaseWomen=[]
-                    ResultadosNotScaledAdvanceMen=[]
-                    ResultadosNotScaledAdvanceWomen=[]
+                    #ResultadosNotScaledBaseWomen=[]
+                    #ResultadosNotScaledAdvanceMen=[]
+                    #ResultadosNotScaledAdvanceWomen=[]
                     # Esta parte se llama cuando ploteas leaderboard: Primero se lee el DataBase por is alguien ha metido datos nuevos y se sacan los
                     # resultados por wod y los nombres según categoria y sexo seleccionados
                     keys=self.DataBase.keys()
                     for i in range(len(keys)):
                         temp=[]
+                        color_temp=[]
                         #temp2=[]
                         
                         if(self.DataBase[list(keys)[i]]['Definition']['Category']==Category):
                     
-                            if(self.DataBase[list(keys)[i]]['Definition']['Gender']==Gender):
-                                for key in(self.DataBase[list(keys)[i]]['WODmarks']):
-                                    if(key in self.ActiveWodNamesFlat):
-                                        temp.append(self.DataBase[list(keys)[i]]['WODmarks'][key])
-                                    #temp2.append(self.DataBase[list(keys)[i]]['RawWODmarks'][key])
-                                #ResultadosNotScaledBaseWomen.append(temp)
-                                Resultados.append(temp)
-                                #self.rawMarks.append(temp2)
-                                Names.append(list(keys)[i])
-                            '''
-                            elif(self.DataBase[list(keys)[i]]['Definition']['Gender']==Gender):
-                                for key in(self.DataBase[list(keys)[i]]['WODmarks']):
-                    
-                                    temp.append(self.DataBase[list(keys)[i]]['WODmarks'][key])
-                                #ResultadosNotScaledBaseMen.append(temp)
-                                Resultados.append(temp)
-                                #KeysNotScaledBaseMen.append(list(keys)[i])
-                                Names.append(list(keys)[i])
-                            '''
+                            if(self.DataBase[list(keys)[i]]['Definition']['Gender']==Gender or Gender=='Mix'):
+                                
+                                self.DondeVideo=np.asarray([('outube' in str(self.DataBase[list(keys)[i]]['WodResultsYoutube'][wod])) for wod in self.ActiveWodNamesFlat])==True
+                                self.DondeResult=np.asarray([((self.DataBase[list(keys)[i]]['WODmarks'][wod]))!=None for wod in self.ActiveWodNamesFlat])==True
+                                AnyVideo=np.all(self.DondeVideo==self.DondeResult)
+                                if(video==False or video==AnyVideo):
+                                    for key in(self.DataBase[list(keys)[i]]['WODmarks']):
+                                        if(key in self.ActiveWodNamesFlat):
+                                            if(self.DataBase[list(keys)[i]]['WODmarksCorrected'][key]!=None):
+                                                #print('Ha pillado que hay corrected')
+                                                temp.append(self.DataBase[list(keys)[i]]['WODmarksCorrected'][key])
+                                            else:
+                                                temp.append(self.DataBase[list(keys)[i]]['WODmarks'][key])
+                                                
+                                            # Obtener colores del LeaderBoard    
+                                            if(self.DataBase[list(keys)[i]]['WODmarksCorrected'][key]!=None):
+                                                color_temp.append('color:lightgreen')
+                                            
+                                            elif('youtube' in str(self.DataBase[list(keys)[i]]['WodResultsYoutube'][key])): # Crear un buen condicional, aunque debería de valer
+                                                color_temp.append('color:lightblue')
+                                            else:
+                                                color_temp.append('color:black')
+                                            
 
-                    #print('Resultados:',Resultados)
+
+                                    Resultados.append(temp)
+                                    Color.append(color_temp)
+                                    Names.append(list(keys)[i])
+
+                    self.OriginalColor=pd.DataFrame(Color)
+                    self.Color=pd.DataFrame(Color)
+                    self.Color.insert(0, 'Puntos', len(self.Color)*['color:black'])
                     self.Names=Names
-                    #print(Names) 
+                    self.Resultados=Resultados
+
                     if(np.shape((np.asarray(Resultados)))[0]>0):   
 
                         # Una vez sacados estos datos, se realiza la puntuación y ordenación
                         for i in range(np.shape((np.asarray(Resultados)))[1]):
                             wodName=self.WodNamesFlat.copy()[i]
-                            #print(wodName)
                             datos=np.asarray(Resultados)[:,i]
                             notnone=np.where(datos!=None)[0].tolist()
                             NombresConResultados=np.asarray(Names)[notnone]
-                            #print(NombresConResultados)
-                            #print(datos[notnone])
-                            orden=[0]*len(datos[notnone])
-                            positions=np.argsort(-datos[notnone])
-                            for p,pos in enumerate(positions):
-                                orden[pos]=p
-                            #print(orden)
-                            orden=np.asarray(orden)
-                            if(len(orden)==1):
+                            positions=rankmin(-datos[notnone])
+                            orden=np.linspace(0,len(notnone)-1,len(notnone)).astype(int)
+
+                            if(len(notnone)==1):
                                 Puntos=[100]
                             else:
-                                #Puntos=100-(orden*(100/(len(orden)-1)))
-                                Puntos=(100-(orden*(100/(len(orden)-1))))
-                            #print(Puntos)
-                            self.datos=datos
-                            unique=np.unique(datos[np.where(datos!=None)])
-                            if (len(unique)!=len(datos)):
-                                for d in range(len(unique)):
-                                    donde=np.where(datos==unique[d])
-                                    if (len(donde[0])>1):
-                                        puntosdonde=Puntos[donde]
-                                        ordendonde=orden[donde]
-                                        Puntos[donde]=np.ones(len(puntosdonde))*np.max(puntosdonde)
-                                        orden[donde]=np.ones(len(ordendonde))*np.min(ordendonde)
-                            
-                            
-                            
-                            
+
+                                #Puntos=(np.round((100-(orden*(99/(len(orden)-1)))))).astype(int)
+                                Puntos=(100-(orden*(99/(len(orden)-1))))
+                                #Puntos=np.round((100-(orden*(99/(len(orden)-1)))),1)
                             for j,Nombre in enumerate(NombresConResultados):
-                                self.DataBase[Nombre]['WODpoints'][wodName]=Puntos[j]    
-                                self.DataBase[Nombre]['WODpositions'][wodName]=orden[j]+1
-                            if(i==0):
-                                self.positions=positions
-                                self.orden=orden
-                                self.Puntos=Puntos
-                                self.datos=datos
-                                
-                                
-                                
-       
-                                
-                                
+
+                                self.DataBase[Nombre]['WODpoints'][wodName]=Puntos[positions[j]]   
+                                self.DataBase[Nombre]['WODpositions'][wodName]=positions[j]+1
+
+        
                         Points=[]
                         Positions=[]
                         self.rawMarks=[]
@@ -1030,28 +1113,39 @@ class CrossTrainingLeague_ZGZ(object):
                             temp4=[]
                             if(self.DataBase[list(keys)[i]]['Definition']['Category']==Category):
                         
-                                if(self.DataBase[list(keys)[i]]['Definition']['Gender']==Gender):
-                                    for key in (self.DataBase[list(keys)[i]]['WODpoints']):
-                                        if(key in self.ActiveWodNamesFlat):
-                                            temp.append(self.DataBase[list(keys)[i]]['WODpoints'][key])
-                                            temp2.append(self.DataBase[list(keys)[i]]['RawWODmarks'][key])
-                                            temp3.append(self.DataBase[list(keys)[i]]['WODpositions'][key])
-                                            temp4.append(self.DataBase[list(keys)[i]]['WodResultsYoutube'][key])
+                                if(self.DataBase[list(keys)[i]]['Definition']['Gender']==Gender or Gender=='Mix'):
+                                    self.DondeVideo=np.asarray([('youtube' in str(self.DataBase[list(keys)[i]]['WodResultsYoutube'][wod])) for wod in self.ActiveWodNamesFlat])==True
+                                    self.DondeResult=np.asarray([((self.DataBase[list(keys)[i]]['WODmarks'][wod]))!=None for wod in self.ActiveWodNamesFlat])==True
+                                    AnyVideo=np.all(self.DondeVideo==self.DondeResult)
+                                    
+                                    if(video==False or video==AnyVideo):
+                                        for key in (self.DataBase[list(keys)[i]]['WODpoints']):
+                                            if(key in self.ActiveWodNamesFlat):
+                                                temp.append(self.DataBase[list(keys)[i]]['WODpoints'][key])
+                                                
+                                                if(self.DataBase[list(keys)[i]]['WODmarksCorrected'][key]!=None):
+                                                    temp2.append(self.DataBase[list(keys)[i]]['RawWODmarksCorrected'][key])
+                                                else:
+                                                    temp2.append(self.DataBase[list(keys)[i]]['RawWODmarks'][key])
+                                                temp3.append(self.DataBase[list(keys)[i]]['WODpositions'][key])
+                                                temp4.append(self.DataBase[list(keys)[i]]['WodResultsYoutube'][key])
 
                                         
-                                    Points.append(temp)
-                                    self.rawMarks.append(temp2)
-                                    Positions.append(temp3)
-                                    WodResultsYoutube.append(temp4)
-                                    Points[-1].insert(0,np.sum(np.asarray(Points[-1])))
-                                    self.rawMarks[-1].insert(0,np.sum(np.asarray(Points[-1])))
-                                    Positions[-1].insert(0,np.sum(np.asarray(Points[-1])))
-                                    WodResultsYoutube[-1].insert(0,np.sum(np.asarray(Points[-1])))
+                                        Points.append(temp)
+                                        self.rawMarks.append(temp2)
+                                        Positions.append(temp3)
+                                        WodResultsYoutube.append(temp4)
+                                        
 
-                                    KeysNotScaledBaseMen.append(list(keys)[i])
-                                    #Points[i].insert(0,np.sum(np.asarray(temp)))
+                                        Points[-1].insert(0,np.sum(np.asarray(Points[-1])))
+                                        self.rawMarks[-1].insert(0,np.sum(np.asarray(Points[-1])))
+                                        Positions[-1].insert(0,np.sum(np.asarray(Points[-1])))
+                                        WodResultsYoutube[-1].insert(0,np.sum(np.asarray(Points[-1])))
+
+                                        KeysNotScaledBaseMen.append(list(keys)[i])
+                                        #Points[i].insert(0,np.sum(np.asarray(temp)))
                         #print(Points)
-                        
+                        self.tempdataframe=Points.copy()
                         '''
     
                         '''
@@ -1063,8 +1157,11 @@ class CrossTrainingLeague_ZGZ(object):
                         colNames_rawData=[s+'_rawData'for s in self.colNames]
                         colNames_positions=[s+'_positions'for s in self.colNames]
                         colNames_WodResultsYoutube=[s+'_youtube'for s in self.colNames]
-                        self.PointsDataFrame=pd.DataFrame(self.Points,columns=self.colNames,index=self.Names)
+                        self.PointsDataFrame=(pd.DataFrame(self.Points,columns=self.colNames,index=self.Names)).round(1)
+                        self.Color.columns=self.colNames
+                        self.Color.index=self.Names
                         self.IndiceDataFrame=self.PointsDataFrame.sort_values(by='Total', ascending=False)
+                        self.Color=self.Color.reindex(self.IndiceDataFrame.index)
                         posprueba=[]
                         for i in range(len(self.IndiceDataFrame['Total'].values)):
                             
@@ -1076,9 +1173,8 @@ class CrossTrainingLeague_ZGZ(object):
                         self.posprueba=posprueba
                                 
                         Indice=pd.Index([j+' ('+str(posprueba[i])+')' for i,j in enumerate(self.IndiceDataFrame.index)])
-                        #Indice=pd.Index([j+' ('+str(i+1)+')' for i,j in enumerate(self.IndiceDataFrame.index)]) Formato anterior de Indice, no ponía la misma posición a dos eprsonas con los mismos puntos globales
-                        #self.PointsDataFrame=self.PointsDataFrame.set_index(self.Names)
-                        
+                        self.indice=Indice
+
                         
                         
                         rawMarksDataFrame=pd.DataFrame(self.rawMarks,columns=colNames_rawData,index=self.Names)
@@ -1086,14 +1182,16 @@ class CrossTrainingLeague_ZGZ(object):
                         self.colNames_WodResultsYoutubeDataFrame=pd.DataFrame(WodResultsYoutube,columns=colNames_WodResultsYoutube,index=self.Names)
                         
 
-                        self.prueba3=pd.concat([self.PointsDataFrame.round(2),PositionsDataFrame,rawMarksDataFrame,self.colNames_WodResultsYoutubeDataFrame], axis=1)
+                        self.prueba3=pd.concat([self.PointsDataFrame,PositionsDataFrame,rawMarksDataFrame,self.colNames_WodResultsYoutubeDataFrame], axis=1)
                         self.prueba3=self.prueba3.sort_values(by='Total', ascending=False)
                         self.prueba3=self.prueba3.set_index(Indice)
-                        # Aquí se ordenan los dos dataframe por puntos totales o por mwod antes de unirlos
                         
-                        #self.PointsDataFrame=self.PointsDataFrame.sort_values(by=self.WOD_LeaderBoard.value, ascending=False)
-
+                        
+                        self.Color.index=self.prueba3.index.copy()
+                        self.Color.index=self.prueba3.index.copy()
+                        # Aquí se ordenan los dos dataframe por puntos totales o por mwod antes de unirlos
                         self.prueba3=self.prueba3.sort_values(by=self.WOD_LeaderBoard.value, ascending=False)
+                        
                         
                         
                         
@@ -1112,11 +1210,21 @@ class CrossTrainingLeague_ZGZ(object):
                     else:
                         self.final=pd.DataFrame(columns=self.colNames)
                         self.final2=pd.DataFrame(columns=self.colNames)
-                    #self.final=self.final.sort_values(by='Total', ascending=False)
+
                     if(video):
-                        export=self.final2
+                        #export=self.final2
+                        export=self.final
                     else:
                         export=self.final
+                    
+
+                    self.Color=self.Color.reindex(export.index)
+                    self.Color.index=export.index.copy()
+                    if(len(self.Color)>0):
+                        export=export.style.apply(lambda _: self.Color, axis=None)
+                    
+                    
+                    
                     
                     return  export
                 
@@ -1137,16 +1245,24 @@ class CrossTrainingLeague_ZGZ(object):
                 self.Gender_LeaderBoard.observe(SortLeaderBoard,'value')
                 self.WOD_LeaderBoard.observe(SortLeaderBoard,'value')
                 self.Video_LeaderBoard.observe(SortLeaderBoard,'value')
-                
-                
-                
-                LeaderBoardgrid=widgets.GridBox(children=[self.Video_LeaderBoard,self.Category_LeaderBoard,self.Gender_LeaderBoard,self.WOD_LeaderBoard,self.wid_LeaderBoard],
+                self.DummyWidget2=widgets.HTML(
+                disabled=True,
+                value="<b></b>",
+                    placeholder='',
+                description='',
+                layout=Layout(width='170px', grid_area='Dummy',border='None')
+                )
+
+               # "Video_LeaderBoard Category_LeaderBoard Gender_LeaderBoard WOD_LeaderBoard"
+               #,self.Gender_LeaderBoard,self.WOD_LeaderBoard
+                LeaderBoardgrid=widgets.GridBox(children=[self.Video_LeaderBoard,self.Category_LeaderBoard,self.wid_LeaderBoard,self.DummyWidget2,self.Gender_LeaderBoard,self.WOD_LeaderBoard],
                               layout=widgets.Layout(
                                   width='auto',
-                                  grid_template_rows='auto auto auto',
+                                  grid_template_rows='auto auto auto auto',
                                   grid_template_columns='auto auto auto auto',
                                   grid_template_areas='''
-                                    "Video_LeaderBoard Category_LeaderBoard Gender_LeaderBoard WOD_LeaderBoard"
+                                    "Video_LeaderBoard Category_LeaderBoard Dummy Dummy"
+                                    "Gender_LeaderBoard WOD_LeaderBoard Dummy Dummy"
                                     "LeaderBoard LeaderBoard LeaderBoard LeaderBoard"
                                     "LeaderBoard LeaderBoard LeaderBoard LeaderBoard"
                                     ''')
@@ -1156,7 +1272,7 @@ class CrossTrainingLeague_ZGZ(object):
                 #self.LeaderBoard_grid = GridspecLayout(2, 3,width='auto',height='700px')
                 #self.LeaderBoard_grid = GridspecLayout(2, 3,width='auto',height='auto')
                 #self.LeaderBoard_grid[1,0:2]=self.wid_LeaderBoard
-                titles.append('LeaderBoard')
+                titles.append('Clasificación')
                 #children.append(self.LeaderBoard_grid)
                 children.append(LeaderBoardgrid)
                 
@@ -1173,12 +1289,14 @@ class CrossTrainingLeague_ZGZ(object):
 
 
                 # TODO ESTO QUEDA PENDIENTE, QUIERO HACER UN CALENDARIO DE BOTONES PARA QUE DESPLIEGUEN LAS INVITACIONES CREADAS
-                Optionswod=self.WODcaledarOptions.copy()
-                Optionswod.insert(0,'All')
+                Optionswod=self.WODcaledarOptions.copy() # Curro
+                Optionswod.insert(0,'Cualquiera')
                 Optionsbox=self.BoxListHost.copy()
-                Optionsbox.insert(0,'All')
+                Optionsbox.insert(0,'Cualquiera')
+                Optionscat=self.CategoryList.copy()
+                Optionscat.insert(0,'Cualquiera')
                 self.PreviousDaySelected=None
-                LeagueCalendarGrid= GridspecLayout(13,7,width='320px',height='auto')  
+                self.LeagueCalendarGrid= GridspecLayout(15,7,width='320px',height='auto')  
                 '''
                 self.DummyWidget=widgets.Output()
                 with self.DummyWidget:
@@ -1192,320 +1310,678 @@ class CrossTrainingLeague_ZGZ(object):
                         layout=widgets.Layout(
                             width='auto',border=None)
                         )
-                '''            
-                self.OpenSpots_widget=widgets.IntText(
+                '''  
+
+                self.OpenSpots_widget_Locals=widgets.IntText(
                     value=0,
-                    description='Available spots',
-                    disabled=False
+                    description='Locales',
+                    style={'description_width': '50px'},
+                    disabled=False,
+                    layout=Layout(width='auto')
+                )
+                self.OpenSpots_widget_Visitors=widgets.IntText(
+                    value=0,
+                    description='Visitantes',
+                    style={'description_width': '75px'},
+                    disabled=False,
+                    layout=Layout(width='auto')
                 )
                 self.AvailableInvitations=widgets.Output(layout={'border': '1px none black'})
 
 
-                Time_picker = ipydatetime.TimePicker()
+                Time_picker = ipydatetime.TimePicker(
+                    description='Hora',
+                    
+                    
+                    
+                    
+                    )
                 def ColorActiveFilteredDays(b):
                     
-                    if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
-                        with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
-                            self.DataBase=pickle.load(fin)
                     
+                    if os.path.exists(os.path.join(os.getcwd(),'DataBaseOwners.users')):
+                        with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'rb') as fin:
+                            self.DataBaseOwners=pickle.load(fin)
+                    '''
                     for limpiar in (self.Days_Calendar_widget):
                         limpiar.style.button_color=None
+                        limpiar.layout.border=None
                         Days_Calendar_np=np.asarray(self.Days_Calendar)
-                        #active_days=[]
-                    if(self.HostorGuest.value=='Join an invitation'):
-                        for key in (self.DataBase.keys()):
-                            sameBaseDiv=(self.DataBase[key]['Definition']['Category'].split('-')[0]==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category'].split('-')[0] )
-                            sameSubDiv=(self.DataBase[key]['Definition']['Category'].split('-')[1]==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category'].split('-')[1])
-                            if(sameBaseDiv): 
-                                
-                                
-                                for dia in(self.DataBase[key]['Host'].keys()):
+                        #active_days
+                    '''    
+                    if(self.HostorGuest.value=='Ver HEATS'):
+                        for limpiar in (self.Days_Calendar_widget):
+                            limpiar.style.button_color=None
+                            limpiar.layout.border=None
+                            Days_Calendar_np=np.asarray(self.Days_Calendar)
+                            #active_days
+                        
+                        # Give blue color to any dat in the calendar qit any invitation open
+                        '''
+                        for key in (self.DataBaseOwners.keys()):
+
+                            for dia in(self.DataBaseOwners[key]['Host'].keys()):
+                                activedaysinmonth=np.where(Days_Calendar_np==dia)[0]
+                                if(len(activedaysinmonth)>0):
+                                    self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightblue'
+                        '''                
+                        # Give green color to open invitations that fits the filtets and the category
+                        diasyaenverde=[]
+                        for key in (self.DataBaseOwners.keys()):
+
+
+                            for dia in(self.DataBaseOwners[key]['Host'].keys()):
+
+                                if dia not in diasyaenverde:
                                     activedaysinmonth=np.where(Days_Calendar_np==dia)[0]
+
                                     if(len(activedaysinmonth)>0):
-                                        if((sameSubDiv and (self.DataBase[key]['Host'][dia][1]==self.WOD_filter.value or self.WOD_filter.value=='All') and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')) or ((((self.DataBase[key]['Host'][dia][1]==Optionswod[1]==self.WOD_filter.value) or ((self.DataBase[key]['Host'][dia][1]==Optionswod[1]) and (self.WOD_filter.value=='All'))) and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')))    ):
-                                            self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightgreen'
-                                
-                                    '''    
-                                        if((self.DataBase[key]['Host'][dia][1]==self.WOD_filter.value or self.WOD_filter.value=='All') and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')) :
-                                            #print('dias activos',np.where(Days_Calendar_np==dia)[0][0])
-                                            self.Days_Calendar_widget[np.where(Days_Calendar_np==dia)[0][0]].style.button_color='lightgreen'
-                                    else:        
-                                        if((self.DataBase[key]['Host'][dia][1]==Optionswod[0]) and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')) :
-                                            #print('dias activos',np.where(Days_Calendar_np==dia)[0][0])
-                                            self.Days_Calendar_widget[np.where(Days_Calendar_np==dia)[0][0]].style.button_color='lightgreen'
-                                    '''    
+
+                                        #if((sameSubDiv and (self.DataBase[key]['Host'][dia][1]==self.WOD_filter.value or self.WOD_filter.value=='All') and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')) or ((((self.DataBase[key]['Host'][dia][1]==Optionswod[1]==self.WOD_filter.value) or ((self.DataBase[key]['Host'][dia][1]==Optionswod[1]) and (self.WOD_filter.value=='All'))) and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')))    ):
+                                        for horadeldia in self.DataBaseOwners[key]['Host'][dia].keys():
+                                            if((self.DataBaseOwners[key]['Host'][dia][horadeldia][1]==self.WOD_filter.value or self.WOD_filter.value=='Cualquiera') and (self.DataBaseOwners[key]['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='Cualquiera') and (self.Category_filter.value in self.DataBaseOwners[key]['Host'][dia][horadeldia][2]  or self.Category_filter.value=='Cualquiera')):
+    
+                                                if(self.typeUser=='Atleta'):
+    
+                                                    #sameDiv=(self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category'] in self.DataBaseOwners[key]['Host'][dia][2])  
+    
+                                                    if ((self.widgets_dict["UserName"].value in self.DataBaseOwners[key]['Host'][dia][horadeldia][-1]) or (self.widgets_dict["UserName"].value in self.DataBaseOwners[key]['Host'][dia][horadeldia][-2])):
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightblue'
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].layout.border='solid 2px black'
+                                                        diasyaenverde.append(dia)
+                                                        
+                                                    else:
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].layout.border='solid 2px black'
+                                                        
+                                                    '''
+                                                    if not sameDiv:
+                                                        #self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightblue'
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].layout.border='solid'
+                                                    else:
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightgreen'
+                                                        diasyaenverde.append(dia)
+                                                    '''                            
+                                                if(self.typeUser=='Owner'):
+                                                    OwnBox=(self.DataBaseOwners[self.widgets_dict["UserName"].value]['HomeBox']==self.DataBaseOwners[key]['HomeBox'])
+    
+                                                    if OwnBox:
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightblue'
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].layout.border='solid 2px black'
+                                                        diasyaenverde.append(dia)
+                                                    else:
+                                                    
+                                                    #self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightblue'
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].layout.border='solid 2px black'
+                                                    
+    
+                                            else:
+                                                
+                                                if(self.typeUser=='Owner'):
+                                                    OwnBox=(self.DataBaseOwners[self.widgets_dict["UserName"].value]['HomeBox']==self.DataBaseOwners[key]['HomeBox'])
+                                                    if(OwnBox):
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightblue'
+                                                elif(self.typeUser=='Atleta'):
+    
+    
+    
+                                                    if ((self.widgets_dict["UserName"].value in self.DataBaseOwners[key]['Host'][dia][horadeldia][-1]) or (self.widgets_dict["UserName"].value in self.DataBaseOwners[key]['Host'][dia][horadeldia][-2])):
+                                                        self.Days_Calendar_widget[activedaysinmonth[0]].style.button_color='lightblue'
+
+                                    
+                    if(self.HostorGuest.value=='Crear un HEAT'): 
+
+
+
+                        # This part is used to append to the options of creating an invitation the combination of catergories based on the self.sharedWodcaledarOptions(whic defines the wod that are coomo for two categories)
+                        if((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==None):
+                            OptionsCategories=self.CategoryList.copy()
+                        elif((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==[0,1]):
+                            OptionsCategories=self.CategoryList.copy()
+                            OptionsCategories.append(self.CategoryList[0]+'-'+self.CategoryList[1])
+                        elif((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==[1,2]):
+                            OptionsCategories=self.CategoryList.copy()
+                            OptionsCategories.append(self.CategoryList[1]+'-'+self.CategoryList[2])
+                              
+                        self.Categories_filter.options=OptionsCategories 
+                        self.Categories_filter.value=OptionsCategories[0]
+                              
                 def ModifyCalendarOptions(b):
-                    
+                    #print('Ha entrado bnew:',b['new'])
                     for limpiar in (self.Days_Calendar_widget):
                         limpiar.style.button_color=None
+                        limpiar.layout.border=None
                     #print(self.Days_Calendar_widget)    
                     if(self.PreviousDaySelected!=None):
                         self.Days_Calendar_widget[self.PreviousDaySelected].style.button_color=None
-                    if(b['new']=='Create an invitation'):
+                    if(b['new']=='Crear un HEAT'):
+
+                        #self.CreateInvitation.description='Crear un HEAT'
                         
                         self.WOD_filter.options=self.WODcaledarOptions
                         self.WOD_filter.value=self.WODcaledarOptions[0]
                         self.BOX_filter.options=self.BoxListHost
                         self.BOX_filter.value=self.BoxListHost[0]
-                        
-                        
+                        self.LeagueCalendarGrid= GridspecLayout(15,7,width='320px',height='auto') 
                         #self.WOD_filter.value=self.WODcaledarOptions[0]
-                        LeagueCalendarGrid[0,:]=self.HostorGuest
-                        LeagueCalendarGrid[6:11,:]=self.Daysgrid
-                        LeagueCalendarGrid[2,:]=self.DummyWidget
-                        LeagueCalendarGrid[3,:]=self.DummyWidget
-                        LeagueCalendarGrid[4,:]=self.DummyWidget
-                        LeagueCalendarGrid[5,0]=self.DummyWidget
-                        LeagueCalendarGrid[12,:]=self.DummyWidget
+                        self.LeagueCalendarGrid[0,:]=self.HostorGuest
+                        self.LeagueCalendarGrid[7,:]=self.NombreMes
+                        #self.LeagueCalendarGrid[1,:]=self.DummyWidget 
+                        #self.LeagueCalendarGrid[2,:]=self.DummyWidget 
+                        #self.LeagueCalendarGrid[3,:]=self.DummyWidget
 
-                    elif(b['new']=='Join an invitation'):
+                        #self.LeagueCalendarGrid[5,:]=self.DummyWidget
+                        #self.LeagueCalendarGrid[6,:]=self.AvisoInvitationCreated
+                        #self.LeagueCalendarGrid[7,:]=self.NombreMes
+                        self.LeagueCalendarGrid[8:13,:]=self.Daysgrid
 
+                        #self.LeagueCalendarGrid[13,:]=self.DummyWidget
+                        temp=list(self.grid.children)
+                        temp[-1]=self.LeagueCalendarGrid
+                        self.grid.children=tuple(temp) # Quitar despues de prueba
+                            
+                    elif(b['new']=='Ver HEATS'):
+
+                        #self.CreateInvitation.description='Unirse a un Heat'
+                        
+                        self.AvisoInvitationCreated.value=""
                         self.WOD_filter.options=Optionswod
                         self.WOD_filter.value=Optionswod[0]
                         self.BOX_filter.options=Optionsbox
                         self.BOX_filter.value=Optionsbox[0]
                         Days_Calendar_np=np.asarray(self.Days_Calendar)
                         #active_days=[]
-                        '''
-                        for key in (self.DataBase.keys()):
-                            if(self.DataBase[key]['Definition']['Category']==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category']): 
 
-                                for dia in(self.DataBase[key]['Host'].keys()):
-                                    #if(self.DataBase[key]['Host'][dia][1]==self.WOD_filter.value):
-                                    #print('dias activos',np.where(Days_Calendar_np==dia)[0][0])
-                                    self.Days_Calendar_widget[np.where(Days_Calendar_np==dia)[0][0]].style.button_color='lightgreen'
-                        '''
                         ColorActiveFilteredDays(self.DummyWidget)
-                        '''
-                        for key in (self.DataBase.keys()):
-                            if(self.DataBase[key]['Definition']['Category'].split('-')[0]==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category'].split('-')[0] ): 
-                                
-                                for dia in(self.DataBase[key]['Host'].keys()):
-                                    if(self.DataBase[key]['Definition']['Category'].split('-')[1]==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category'].split('-')[1] ):
-                                        if((self.DataBase[key]['Host'][dia][1]==self.WOD_filter.value or self.WOD_filter.value=='All') and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')) :
-                                            #print('dias activos',np.where(Days_Calendar_np==dia)[0][0])
-                                            self.Days_Calendar_widget[np.where(Days_Calendar_np==dia)[0][0]].style.button_color='lightgreen'
-                                    else:        
-                                        if((self.DataBase[key]['Host'][dia][1]==Optionswod[0]) and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')) :
-                                            #print('dias activos',np.where(Days_Calendar_np==dia)[0][0])
-                                            self.Days_Calendar_widget[np.where(Days_Calendar_np==dia)[0][0]].style.button_color='lightgreen'
-                        '''
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-                        
 
-                        LeagueCalendarGrid[0,:]=self.HostorGuest
-                        LeagueCalendarGrid[1,:]=self.WOD_filter
-                        LeagueCalendarGrid[2,:]=self.BOX_filter
-                        LeagueCalendarGrid[6:11,:]=self.Daysgrid
-                        LeagueCalendarGrid[3,0]=self.DummyWidget
-                        LeagueCalendarGrid[4,0]=self.DummyWidget
-                        LeagueCalendarGrid[5,0]=self.DummyWidget
-                        LeagueCalendarGrid[12,:]=self.DummyWidget
+                        self.LeagueCalendarGrid= GridspecLayout(15,7,width='320px',height='auto') 
+                        self.LeagueCalendarGrid[0,:]=self.HostorGuest
+                        self.LeagueCalendarGrid[1,:]=self.WOD_filter
+                        self.LeagueCalendarGrid[2,:]=self.BOX_filter
+                        self.LeagueCalendarGrid[3,:]=self.Category_filter
+                        self.LeagueCalendarGrid[4,:]=self.NombreMes
+                        self.LeagueCalendarGrid[5:10,:]=self.Daysgrid
+                        temp=list(self.grid.children)
+                        temp[-1]=self.LeagueCalendarGrid
+                        self.grid.children=tuple(temp) # Quitar despues de prueba
                         
-                        
+                 
+                def DeleteGuest(b): 
+                    DateOK=self.currentDate<=self.Days_Calendar[self.PreviousDaySelected]
+                    if(DateOK):
+                        listahora=b.tooltip.split('-|-')[3].split(':')
+                        hora=datetime.time(int(listahora[0]),int(listahora[1]))
+                        if(self.typeUser=='Atleta'):
+                            self.savedeleteControl=True
+                            self.pos_textoaviso=int(b.tooltip.split('-|-')[2])
+                            if os.path.exists(os.path.join(os.getcwd(),'DataBaseOwners.users')):
+                                with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'rb') as fin:
+                                    self.DataBaseOwners=pickle.load(fin)
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                            if(self.DataBaseOwners[b.tooltip.split('-|-')[0]]['HomeBox']==self.DataBase[self.UserName.value]['Definition']['HomeBox']):
+                                GuestList=self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-2]
+                                Spots=self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-4]
+                                if(self.widgets_dict["UserName"].value in GuestList) :
+                                    GuestList.pop(np.where(np.asarray(GuestList)==self.widgets_dict["UserName"].value)[0][0])
+                                    Spots+=1
+                                    self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-4]=Spots
+                                    self.textoaviso='Te has borrado del heat'
+                                    #if((Spots-1)==0):
+                                        #b.style.button_color='red'
+                                else:
+                                    self.textoaviso='No estabas en el heat'   
+                            else:
+                                GuestList=self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-1]
+                                Spots=self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-3]
+                                if(self.widgets_dict["UserName"].value in GuestList):
+                                    
+                                    GuestList.pop(np.where(np.asarray(GuestList)==self.widgets_dict["UserName"].value)[0][0])
+                                    Spots+=1
+                                    self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-3]=Spots
+                                    self.textoaviso='Te has borrado del heat'
+                                else:
+                                    self.textoaviso='No estabas en el heat'   
+                                        
+                                        
+                                        
+                            with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'wb') as fout:
+                                        pickle.dump(self.DataBaseOwners, fout)
+                            DaySelected(self.globalDaySelectedWidget)
+                            self.savedeleteControl=False
+                            self.pos_textoaviso=0
+                    else:
+                        self.textoaviso="Se ha pasado la fecha"
                 def SaveGuest(b):
-                    #print('Ha entrado a guardas un guest')
+                    
+                    DateOK=self.currentDate<=self.Days_Calendar[self.PreviousDaySelected]
+                    if(DateOK):
+                        listahora=b.tooltip.split('-|-')[3].split(':')
+                        hora=datetime.time(int(listahora[0]),int(listahora[1]))
+                        '''
+                        if(self.typeUser=='Owner'):
+                            sameDiv=True # Los owner pueden ver todas las invitacines
+                        '''                            
+                        if(self.typeUser=='Atleta'):
+                            self.savedeleteControl=True
+                            self.pos_textoaviso=int(b.tooltip.split('-|-')[2])
+                            
+                            if os.path.exists(os.path.join(os.getcwd(),'DataBaseOwners.users')):
+                                with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'rb') as fin:
+                                    self.DataBaseOwners=pickle.load(fin)
+                                
+                            if(self.DataBaseOwners[b.tooltip.split('-|-')[0]]['HomeBox']==self.DataBase[self.UserName.value]['Definition']['HomeBox']):
+                                #time.sleep(5)    
+                                GuestList=self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-2]
+                                Spots=self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-4]
+                                if(Spots>=1 and (self.widgets_dict["UserName"].value not in GuestList) ):
+                                    GuestList.append(self.widgets_dict["UserName"].value)
+                                    Spots-=1
+                                    self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-4]=Spots
+                                    
+                                    self.textoaviso="Te has apuntado en el heat"
+                                    #print("Te has apuntado en el heat")
+                                elif(self.widgets_dict["UserName"].value in GuestList):
+                                    self.textoaviso="Ya estás en el heat"
+                                elif(Spots<1):
+                                    self.textoaviso="El heat está completo"
 
-                    
-                    
-                    if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
-                        with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
-                            self.DataBase=pickle.load(fin)
-                    # Agregar aqui condicional para que estén todos los campos rellenados antes de guardas la invitación        
-                    
+                                    #if((Spots-1)==0):
+                                        #b.style.button_color='red'
+                            else:
+                                #time.sleep(15)    
+                                GuestList=self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-1]
+                                Spots=self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-3]
+                                if(Spots>=1 and (self.widgets_dict["UserName"].value not in GuestList) ):
+                                    
+                                    GuestList.append(self.widgets_dict["UserName"].value)
+                                    Spots-=1
+                                    self.DataBaseOwners[b.tooltip.split('-|-')[0]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][hora][-3]=Spots
+                                    self.textoaviso="Te has apuntado en el heat"
+                                elif(self.widgets_dict["UserName"].value in GuestList):
+                                    self.textoaviso="Ya estás en el heat"
+                                    #if((Spots-1)==0):
+                                elif(Spots<1):
+                                    self.textoaviso="El heat está completo"
 
-                    GuestList=self.DataBase[b.description.split('-|-')[1]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][-1]
-                    Spots=self.DataBase[b.description.split('-|-')[1]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][-2]
-                    if(Spots>=1 and (self.widgets_dict["UserName"].value not in GuestList) and (self.widgets_dict["UserName"].value!=b.description.split('-|-')[1])):
+                                    
+                            with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'wb') as fout:
+                                        pickle.dump(self.DataBaseOwners, fout)
+                        DaySelected(self.globalDaySelectedWidget)
+                        self.savedeleteControl=False
+                        self.pos_textoaviso=0
                         
-                        self.DataBase[b.description.split('-|-')[1]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][-2]=Spots-1
-                        self.DataBase[b.description.split('-|-')[1]]['Host'][self.Days_Calendar[self.PreviousDaySelected]][-1].append(self.widgets_dict["UserName"].value)
-                        if((Spots-1)==0):
-                            b.style.button_color='red'
-                        with open(os.path.join(os.getcwd(),'DataBase.users'), 'wb') as fout:
-                                    pickle.dump(self.DataBase, fout)
-                        
-                        
+                    else:
+
+                        self.AvisoApuntarse[int(b.tooltip.split('-|-')[2])].value="Se ha pasado la fecha"
+
                         
                         
                 def DaySelected(b):
+                    self.globalDaySelectedWidget=b
+
                     if(self.PreviousDaySelected!=None):
-                        self.Days_Calendar_widget[self.PreviousDaySelected].layout.border = "2px None blue"
+                        #self.Days_Calendar_widget[self.PreviousDaySelected].layout.border = "2px None blue"
+                        ColorActiveFilteredDays(self.DummyWidget)
 
                     self.Days_Calendar_widget[int(b.description)-1].layout.border = "2px solid blue" #.layout=Layout(border='solid')
+
                     self.PreviousDaySelected=int(b.description)-1
-                    if(self.HostorGuest.value=='Create an invitation'):
-
-
+                    if(self.HostorGuest.value=='Crear un HEAT'):
+                        self.CreateInvitation.description='Crear invitation'
+                        # This part is used to append to the options of creating an invitation the combination of catergories based on the self.sharedWodcaledarOptions(whic defines the wod that are coomo for two categories)
+                        if((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==None):
+                            OptionsCategories=self.CategoryList.copy()
+                        elif((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==[0,1]):
+                            OptionsCategories=self.CategoryList.copy()
+                            OptionsCategories.append(self.CategoryList[0]+'-'+self.CategoryList[1])
+                        elif((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==[1,2]):
+                            OptionsCategories=self.CategoryList.copy()
+                            OptionsCategories.append(self.CategoryList[1]+'-'+self.CategoryList[2])
+                            
+                        self.Categories_filter.options=OptionsCategories 
+                        self.Categories_filter.value=OptionsCategories[0]
+                        self.LeagueCalendarGrid= GridspecLayout(15,7,width='320px',height='auto') 
                         #print('Ha seleccionado un dia en creacion de ivitacion')
-                        LeagueCalendarGrid[0,:]=self.HostorGuest
-                        LeagueCalendarGrid[6:11,:]=self.Daysgrid
-                        LeagueCalendarGrid[1,:]=self.WOD_filter
-                        LeagueCalendarGrid[3,:]=Time_picker
-                        LeagueCalendarGrid[4,:]=self.OpenSpots_widget
-                        LeagueCalendarGrid[5,:]=self.CreateInvitation
-                        LeagueCalendarGrid[12,0:5]=self.DummyWidget
-                        LeagueCalendarGrid[12,5:]=self.DummyWidget
+                        self.LeagueCalendarGrid[0,:]=self.HostorGuest
+                        self.LeagueCalendarGrid[1,:]=self.WOD_filter
+                        self.LeagueCalendarGrid[2,:]=self.Categories_filter
+                        self.LeagueCalendarGrid[3,:]=Time_picker
+                        self.LeagueCalendarGrid[4,0:3]=self.OpenSpots_widget_Locals
+                        self.LeagueCalendarGrid[4,3:6]=self.OpenSpots_widget_Visitors
+                        self.LeagueCalendarGrid[5,:]=self.CreateInvitation
+                        self.LeagueCalendarGrid[6,:]=self.AvisoInvitationCreated
+                        self.LeagueCalendarGrid[7,:]=self.NombreMes
+                        self.LeagueCalendarGrid[8:13,:]=self.Daysgrid
+                        temp=list(self.grid.children)
+                        temp[-1]=self.LeagueCalendarGrid
+                        self.grid.children=tuple(temp) # Quitar despues de prueba
+                        #[14,0:5]=self.DummyWidget # Originalmente activado
+                        #self.LeagueCalendarGrid[15,5:]=self.DummyWidget
                         
-                    elif(self.HostorGuest.value=='Join an invitation'):
+                    elif(self.HostorGuest.value=='Ver HEATS'):
+                        #**********************
+
+                        #print('Ha entrado en day selected, depués de elif Seeopen')
                         
-                        if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
-                            with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
-                                self.DataBase=pickle.load(fin)
+                        if os.path.exists(os.path.join(os.getcwd(),'DataBaseOwners.users')):
+                            with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'rb') as fin:
+                                self.DataBaseOwners=pickle.load(fin)
                         self.Invitations=[]
                         self.InvitationsWidgets=[]
+                        self.ApuntarseWidgets=[]
+                        self.BorrarseWidgets=[]
+                        self.ApuntarseGrid=[]
                         self.GuestsWidgets=[]
+                        self.AvisoApuntarse=[]
                         i=0
                         columnas=['Time','Host','Category','HomeBox','WOD','Available spots','Guests']
-                        '''
-                        for key in (self.DataBase.keys()):
-                            if(self.DataBase[key]['Definition']['Category']==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category']):   
-                        '''       
-                        for key in (self.DataBase.keys()):
-                            sameBaseDiv=(self.DataBase[key]['Definition']['Category'].split('-')[0]==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category'].split('-')[0] )
-                            sameSubDiv=(self.DataBase[key]['Definition']['Category'].split('-')[1]==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category'].split('-')[1])
-                            #print('sameSubDiv: ',sameSubDiv)
-                            if(sameBaseDiv): 
-                                
-                                
-                                for dia in(self.DataBase[key]['Host'].keys()):
-                                    if(self.Days_Calendar[self.PreviousDaySelected]==dia):
-                                        
-                                        if((sameSubDiv and (self.DataBase[key]['Host'][dia][1]==self.WOD_filter.value or self.WOD_filter.value=='All') and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')) or ( ((self.DataBase[key]['Host'][dia][1]==Optionswod[1]) and (self.DataBase[key]['Definition']['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='All')))    ):
-                                            #self.Days_Calendar_widget[np.where(Days_Calendar_np==dia)[0][0]].style.button_color='lightgreen'
-                                    
-                                    
-                                    
-                                    
-        
-                                            #self.DataBase[key]['Host'][self.Days_Calendar[self.PreviousDaySelected]].insert(0,key)
-                                            temp=self.DataBase[key]['Host'][self.Days_Calendar[self.PreviousDaySelected]].copy()
-                                            temp[1:1]=([key,self.DataBase[key]['Definition']['Category'],self.DataBase[key]['Definition']['HomeBox']])
-                                            
-                                            self.Invitations.append(temp)
-                                            texto=[str(s) for s in self.Invitations[i][0:-1]]
-                                            texto=('-|-'.join(texto))
-                                            self.InvitationsWidgets.append(widgets.Button(
-                                                        description=texto,
-                                                        disabled=False,
-                                                        indent=False,
-                                                
-                                                        layout=Layout(width='auto')))
-                                            
-                                            if(len(self.Invitations[i][-1])>0):
-                                                opciones=self.Invitations[i][-1]
-                                                valor=self.Invitations[i][-1][0]
-                                            else:
-                                                
-                                                opciones=['None']
-                                                valor=opciones[0]
-                                                
-                                            self.GuestsWidgets.append(widgets.Dropdown(
-                                            options=opciones,
-            
-                                            value=valor,
-                                            description='',
-                                            disabled=False,
-                                            layout=Layout(width='auto')))
-                                            
-                                            
-                                            self.InvitationsWidgets[i].on_click(SaveGuest)
-                                            i+=1
-                        self.InvitationsLayout= GridspecLayout(len(self.Invitations)+1, 5)
-                        self.GuestsLayout= GridspecLayout(len(self.Invitations)+1, 1)
-                        for j in range(len(self.Invitations)+1):
-                            if (j==0):
-                                self.InvitationsLayout[j,:]=widgets.Button(
-                                            description=('-|-'.join(columnas[0:-1])),
-                                            disabled=True,
-                                            indent=False,
-                                    
-                                            layout=Layout(width='auto'))
-                                
-                                self.GuestsLayout[j,:]=widgets.Button(
-                                            description=(columnas[-1]),
-                                            disabled=True,
-                                            indent=False,
-                                    
-                                            layout=Layout(width='auto'))
-                                
-                                
-                            else:
-                                self.InvitationsLayout[j,:]=self.InvitationsWidgets[j-1]
-                                self.GuestsLayout[j,:]=self.GuestsWidgets[j-1]
-                            
-                        self.Invitations=sorted(self.Invitations, key=itemgetter(0))
-                        #Probando=pd.DataFrame(self.Invitations,columns=columnas,index=None)
-                        
-                        self.AvailableInvitations.clear_output()
-                        with self.AvailableInvitations:
-                            #display(Probando)  
-                            display(self.InvitationsLayout)
-                        
-                        
 
-                        LeagueCalendarGrid[12,0:5]=self.AvailableInvitations
-                        LeagueCalendarGrid[12,5:]=self.GuestsLayout
-                        #print('Ha seleccionado un dia en UNIRSE a una invitacion')
+                        # Curro
+                        for key in (self.DataBaseOwners.keys()):
+
+
+                            if(self.typeUser=='Owner'):
+                                #sameDiv=(self.Category_filter.value in self.DataBaseOwners[key]['Host'][dia][2]  or self.Category_filter.value=='All') #True # Los owner pueden ver todas las invitacines
+                                CategoOk=False
+                                
+                            for dia in(self.DataBaseOwners[key]['Host'].keys()):
+                                if(self.Days_Calendar[self.PreviousDaySelected]==dia):
+                                    for horadeldia in self.DataBaseOwners[key]['Host'][dia].keys():
+                                        sameDiv=(self.Category_filter.value in self.DataBaseOwners[key]['Host'][dia][horadeldia][2]  or self.Category_filter.value=='Cualquiera')
+                                        if(self.typeUser=='Atleta'):
+                
+                                            #sameDiv=(self.Category_filter.value in self.DataBaseOwners[key]['Host'][dia][2]  or self.Category_filter.value=='All')
+                                            CategoOk=self.DataBase[self.UserName.value]['Definition']['Category'] in self.DataBaseOwners[key]['Host'][dia][horadeldia][2] 
+                                        if((sameDiv and (self.DataBaseOwners[key]['Host'][dia][horadeldia][1]==self.WOD_filter.value or self.WOD_filter.value=='Cualquiera') and (self.DataBaseOwners[key]['HomeBox']==self.BOX_filter.value or self.BOX_filter.value=='Cualquiera')) ):
+    
+                                            
+                                            if(CategoOk):
+                                                DisabledApuntarse=False
+                                            else:
+                                                DisabledApuntarse=True
+                                            #texto=[str(key),str(self.Categories_filter.value)]
+                                            texto=[str(key),str(self.Categories_filter.value),str(i),str(horadeldia)]
+                                            texto=('-|-'.join(texto))
+                                            self.ApuntarseWidgets.append(widgets.Button(
+                                            description='Apuntarse',
+                                            disabled=DisabledApuntarse,
+                                            button_style='', # 'success', 'info', 'warning', 'danger' or ''
+                                            tooltip=texto,
+                                            layout=Layout(width='auto',heigth='auto', grid_area='Apuntarse',border='solid'),
+                                            icon='' # (FontAwesome names without the `fa-` prefix)
+                                            ))
+                                            
+                                            self.BorrarseWidgets.append(widgets.Button(
+                                            description='Borrarse',
+                                            disabled=DisabledApuntarse,
+                                            button_style='', # 'success', 'info', 'warning', 'danger' or ''
+                                            tooltip=texto,
+                                            layout=Layout(width='auto', grid_area='Borrarse',border='solid'),
+                                            icon='' # (FontAwesome names without the `fa-` prefix)
+                                            ))
+                                            #print('self.savedeleteControl',self.savedeleteControl)
+                                            if (i==self.pos_textoaviso and self.savedeleteControl):
+                                                textoaviso=self.textoaviso
+                                            else:
+                                                textoaviso=''
+                                              
+                                            self.AvisoApuntarse.append(widgets.HTML(
+                                                        value="<b>%s</b>"%textoaviso,
+                                                        placeholder='',
+                                                        description='',
+                                                        indent=False,
+                                                        layout=Layout(width='auto', grid_area='AvisoApuntarse'),
+                                                        ))
+    
+                                            self.HeaderBox=widgets.HTML(
+                                                        value="<b>%s<b>"%self.DataBaseOwners[key]['HomeBox'],
+                                                        placeholder='',
+                                                        description='',
+                                                        indent=False,
+                                                        layout=Layout(width='auto', grid_area='HeaderBox',border='solid'),
+                                                        )
+    
+                                            self.HeaderCategory=widgets.HTML(
+                                                        value="<b>%s<b>"%self.DataBaseOwners[key]['Host'][dia][horadeldia][2],
+                                                        placeholder='',
+                                                        description='',
+                                                        indent=False,
+                                                        layout=Layout(width='auto', grid_area='HeaderCategory',border='solid'),
+                                                        )
+                                            self.HeaderTime=widgets.HTML(
+                                                        value="<b>%s<b>"%self.DataBaseOwners[key]['Host'][dia][horadeldia][0],
+                                                        placeholder='',
+                                                        description='',
+                                                        indent=False,
+                                                        layout=Layout(width='auto', grid_area='HeaderTime',border='solid'),
+                                                        )
+                                            ApunAnfi=len(self.DataBaseOwners[key]['Host'][dia][horadeldia][-2])
+                                            LibresAnfitriones=str(ApunAnfi)+'/'+str(ApunAnfi+self.DataBaseOwners[key]['Host'][dia][horadeldia][-4])
+                                            
+                                            self.LibresAnfitriones=widgets.HTML(
+                                                        value="<b>%s<b>"%LibresAnfitriones,
+                                                        placeholder='',
+                                                        description='',
+                                                        indent=False,
+                                                        layout=Layout(width='auto', grid_area='LibresAnfitriones',border='solid'),
+                                                        )
+                                            
+                                            ApunVisi=len(self.DataBaseOwners[key]['Host'][dia][horadeldia][-1])
+                                            LibresVisitantes=str(ApunVisi)+'/'+str(ApunVisi+self.DataBaseOwners[key]['Host'][dia][horadeldia][-3])
+                                            self.LibresVisitantes=widgets.HTML(
+                                                        value="<b>%s<b>"%LibresVisitantes,
+                                                        placeholder='',
+                                                        description='',
+                                                        indent=False,
+                                                        layout=Layout(width='auto', grid_area='LibresVisitantes',border='solid'),
+                                                        )
+                                            self.HeaderWod=widgets.HTML(
+                                                        value="<b>%s<b>"%self.DataBaseOwners[key]['Host'][dia][horadeldia][1],
+                                                        placeholder='',
+                                                        description='',
+                                                        indent=False,
+                                                        layout=Layout(width='auto', grid_area='HeaderWod',border='solid'),
+                                                        )
+                                            opciones=[]
+                                            if (ApunAnfi==0):
+                                                opciones=[]
+                                                opciones.insert(0,'None')
+                                            else:
+                                                opciones=self.DataBaseOwners[key]['Host'][dia][horadeldia][-2]
+                                                
+                                            self.ListAnfitriones=widgets.Dropdown(
+                                            options=opciones,
+                                            value=opciones[0],
+                                            description='',
+                                            #indent=False,
+                                            #layout=Layout(width='auto', grid_area='Category'),
+                                            layout=Layout(width='max-content', grid_area='ListAnfitriones'),
+                                            style=style
+                                            )
+                                            opciones=[]
+                                            if (ApunVisi==0):
+                                                opciones=[]
+                                                opciones.insert(0,'None')
+                                            else:
+                                                opciones=self.DataBaseOwners[key]['Host'][dia][horadeldia][-1]
+                                            self.ListVisitantes=widgets.Dropdown(
+                                            options=opciones,
+                                            value=opciones[0],#self.DataBaseOwners[key]['Host'][dia][-1][0],
+                                            #indent=False,
+                                            #layout=Layout(width='auto', grid_area='Category'),
+                                            layout=Layout(width='max-content', grid_area='ListVisitantes'),
+                                            style=style
+                                            )
+                                            
+    
+                                            self.ApuntarseWidgets[i].on_click(SaveGuest)
+                                            self.BorrarseWidgets[i].on_click(DeleteGuest)
+                                            self.ApuntarseGrid.append(GridBox(children=[self.HeaderBox,self.HeaderWod,self.HeaderHost,self.HeaderGuest,self.LibresVisitantes,self.LibresAnfitriones,self.ListAnfitriones,self.ListVisitantes,self.HeaderTime,self.HeaderCategory,self.ApuntarseWidgets[i],self.BorrarseWidgets[i],self.AvisoApuntarse[i]],
+                                                      layout=Layout(
+                                                          border='solid',
+                                                          width='auto',
+                                                          grid_template_columns='auto auto auto auto',
+                                                          grid_template_rows='auto auto auto auto',
+                                                          grid_template_areas='''
+                                                            "HeaderBox HeaderWod HeaderTime HeaderCategory"
+                                                            "Anfitriones LibresAnfitriones ListAnfitriones Apuntarse"
+                                                             "Visitantes LibresVisitantes  ListVisitantes Borrarse"
+                                                             "AvisoApuntarse AvisoApuntarse AvisoApuntarse AvisoApuntarse"
+                                
+                                                            '''
+                                                          )
+                                                     )) 
+                                            #InvitationsLayout[i,:]=tempgrid
+                                            i+=1
+                        
+                        numInvis=len(self.ApuntarseGrid)
+                        
+                        self.CreateInvitation.description='Unirse a un Heat'
+                        # Prueba redefinir gridSpecLayout
+                        self.LeagueCalendarGrid= GridspecLayout(15+5*numInvis,7,width='320px',height='auto')  
+                        if(self.typeUser=='Owner'):
+                            self.LeagueCalendarGrid[0,:]=self.HostorGuest
+                        elif(self.typeUser=='Atleta'):
+                            self.LeagueCalendarGrid[0,:]=self.DummyWidget
+                    
+                        self.LeagueCalendarGrid[1,:]=self.WOD_filter
+                        self.LeagueCalendarGrid[2,:]=self.BOX_filter
+                        self.LeagueCalendarGrid[3,:]=self.Category_filter
+                        self.LeagueCalendarGrid[4,:]=self.NombreMes
+                        self.LeagueCalendarGrid[5:10,:]=self.Daysgrid
                         
                         
+                        k=0
+                        if(numInvis>0):
+                            '''
+                            self.InvitationsLayout= GridspecLayout(numInvis, 5)
+                            for j in range(numInvis):
+                                self.InvitationsLayout[j,:]=self.ApuntarseGrid[j]
+                                self.LeagueCalendarGrid[(10+k):14+k,:]=self.InvitationsLayout
+                                k+=5
+                            #self.LeagueCalendarGrid[14,:]=self.InvitationsLayout
+                            '''
+                            vbox=VBox(self.ApuntarseGrid)
+                            self.LeagueCalendarGrid[11:,:]=vbox
+                            
+                        else:
+                            self.LeagueCalendarGrid[14,:]=self.DummyWidget
+                        self.savedeleteControl=False
+                        temp=list(self.grid.children)
+                        temp[-1]=self.LeagueCalendarGrid
+                        self.grid.children=tuple(temp) # Quitar despues de prueba
                 def createInvitation(b):
                     #print('Ha entreado a crear una invitacion')
-                    if os.path.exists(os.path.join(os.getcwd(),'DataBase.users')):
-                        with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
-                            self.DataBase=pickle.load(fin)
+                    if os.path.exists(os.path.join(os.getcwd(),'DataBaseOwners.users')):
+                        with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'rb') as fin:
+                            self.DataBaseOwners=pickle.load(fin)
                     # Agregar aqui condicional para que estén todos los campos rellenados antes de guardas la invitación        
-                    if(4>2):
-                        self.DataBase[self.widgets_dict["UserName"].value]['Host'][self.Days_Calendar[self.PreviousDaySelected]]=[Time_picker.value,self.WOD_filter.value,self.OpenSpots_widget.value,[]]
-                    
+                    if(self.currentDate>self.Days_Calendar[self.PreviousDaySelected]):
+                        self.AvisoInvitationCreated.value="Se ha pasado la fecha"
+                    elif(Time_picker.value==None):
+                        self.AvisoInvitationCreated.value="<b>Selecciona una hora para el heat</b>"
 
-                    with open(os.path.join(os.getcwd(),'DataBase.users'), 'wb') as fout:
-                                pickle.dump(self.DataBase, fout)
+                    elif(self.OpenSpots_widget_Locals.value<=0 or self.OpenSpots_widget_Visitors.value<=0):   
+
+                        self.AvisoInvitationCreated.value="Error: Num plazas<1"
+
+                    else:
+                        
+                        if(self.Days_Calendar[self.PreviousDaySelected] not in self.DataBaseOwners[self.widgets_dict["UserName"].value]['Host'].keys()):
+                            self.DataBaseOwners[self.widgets_dict["UserName"].value]['Host'][self.Days_Calendar[self.PreviousDaySelected]]={}    
+                            
+                        
+                        #self.DataBaseOwners[self.widgets_dict["UserName"].value]['Host'][self.Days_Calendar[self.PreviousDaySelected]]=[Time_picker.value,self.WOD_filter.value,self.Categories_filter.value,self.OpenSpots_widget_Locals.value,self.OpenSpots_widget_Visitors.value,[],[]]
+                        self.DataBaseOwners[self.widgets_dict["UserName"].value]['Host'][self.Days_Calendar[self.PreviousDaySelected]][Time_picker.value]=[Time_picker.value,self.WOD_filter.value,self.Categories_filter.value,self.OpenSpots_widget_Locals.value,self.OpenSpots_widget_Visitors.value,[],[]]
+                        self.AvisoInvitationCreated.value="Invitación creada correctamente"
+                        
+                        
+                    with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'wb') as fout:
+                                pickle.dump(self.DataBaseOwners, fout)
                     
                     
                     
                     
                 self.HostorGuest=widgets.Dropdown(
-                options=['Create an invitation','Join an invitation'],
-                value='Join an invitation',
-                description='Create or join',
+                options=['Crear un HEAT','Ver HEATS'],
+                value='Ver HEATS',
+                description='',
                 )
                 self.WOD_filter=widgets.Dropdown(
                 options=Optionswod,
                 value=Optionswod[0],
                 description='Wod',
                 )
+                # This part is used to append to the options of creating an invitation the combination of catergories based on the self.sharedWodcaledarOptions(whic defines the wod that are coomo for two categories)
+                if((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==None):
+                    OptionsCategories=self.CategoryList.copy()
+                elif((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==[0,1]):
+                    OptionsCategories=self.CategoryList.copy()
+                    OptionsCategories.append(self.CategoryList[0]+'-'+self.CategoryList[1])
+                elif((self.sharedWodcaledarOptions[np.where(np.asarray(list(self.WOD_filter.options))==self.WOD_filter.value)[0][0]])==[1,2]):
+                    OptionsCategories=self.CategoryList.copy()
+                    OptionsCategories.append(self.CategoryList[1]+'-'+self.CategoryList[2])
+                self.Categories_filter=widgets.Dropdown(
+                options=OptionsCategories,
+                value=OptionsCategories[0],
+                description='Category',
+                )
+                        
+                
                 self.BOX_filter=widgets.Dropdown(
                 options=Optionsbox,
                 value=Optionsbox[0],
                 description='Box',
                 )
+                if(self.typeUser=='Owner'):
+                    ini_catefilvalue=Optionscat[0]
+                elif(self.typeUser=='Atleta'):
+                    ini_catefilvalue=self.ini_catefilvalue=self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category']
+                self.Category_filter=widgets.Dropdown(
+                options=Optionscat,
+                value=ini_catefilvalue,
+                description='Categoría',
+                )
+                
+                
+                #self.sharedWodcaledarOptions
+                
+                
+
                 self.CreateInvitation=widgets.Button(
                             value=False,
-                            description='Create Invitation',
+                            description='Crear HEAT',
                             disabled=False,
                             indent=False,
-                            layout=Layout(width='auto'),
+                            layout=Layout(width='auto',border='solid'),
                             
                 )
+                def clearInvitations(b):
+                    if(self.HostorGuest.value=='Ver HEATS'):
+                        self.LeagueCalendarGrid[10:,:]=self.DummyWidget
+ 
+                    
+                
+                self.WOD_filter.observe(clearInvitations,'value')
+                self.BOX_filter.observe(clearInvitations,'value')
+                self.Category_filter.observe(clearInvitations,'value')
                 
                 self.CreateInvitation.on_click(createInvitation)
                 self.HostorGuest.observe(ModifyCalendarOptions,'value')
                 self.WOD_filter.observe(ColorActiveFilteredDays,'value')
                 self.BOX_filter.observe(ColorActiveFilteredDays,'value')
+                self.Category_filter.observe(ColorActiveFilteredDays,'value')
+
+
                 
                 # then must create an object of the Calendar class
                 cal = calendar.Calendar(firstweekday=0)
-                year = datetime.date.today().year
-                month =datetime.date.today().month
+                year = 2022#datetime.date.today().year Volver a poner
+                month =11#datetime.date.today().month Volver a poner
                 calendario=cal.monthdatescalendar(year, month)
                 # Este bucle es para crear los button widget del calendario de invitacione (a la vez se crea el texto para meter en el templateAreas del grid)
                 self.string_grid_templaAreas=''+'\n'+' '*35
@@ -1516,6 +1992,7 @@ class CrossTrainingLeague_ZGZ(object):
                 dia=1
                 prueba=[["aa","ab","ac","ad","ae","af","ag"],["ba","bb","bc","bd","be","bf","bg"],["ca","cb","cc","cd","ce","cf","cg"],["da","db","dc","dd","de","df","dg"],["ea","eb","ec","ed","ee","ef","eg"],["fa","fb","fc","fd","fe","ff","fg"]]
                 Final=False
+                # All below is to genrate the calendar
                 for semana in range(len(calendario)):
                     if((len(calendario)-semana)==1):
                         Final=True
@@ -1526,7 +2003,8 @@ class CrossTrainingLeague_ZGZ(object):
                         if((len(calendario[semana])-i)==1):
                             semana_lastEntry=True
                 
-                        if(calendario[semana][i].month==datetime.date.today().month):
+                        #if(calendario[semana][i].month==datetime.date.today().month): Volver a poner
+                        if(calendario[semana][i].month==11):
                             disabledValue=False
                             Description=str(dia)
                             dia+=1
@@ -1582,49 +2060,43 @@ class CrossTrainingLeague_ZGZ(object):
                                   grid_template_columns='auto',
                                   grid_template_areas=self.string_grid_templaAreas)
                                         ) 
-       
                 
-                LeagueCalendarGrid[0,:]=self.HostorGuest
-                LeagueCalendarGrid[1,:]=self.WOD_filter
-                LeagueCalendarGrid[2,:]=self.BOX_filter
-                LeagueCalendarGrid[6:11,:]=self.Daysgrid
-                LeagueCalendarGrid[12,:]=self.DummyWidget
-
-                titles.append('LeagueCalendar')
-
-                children.append(LeagueCalendarGrid)    
+                if(self.typeUser=='Owner'):
+                    self.LeagueCalendarGrid[0,:]=self.HostorGuest
+                elif(self.typeUser=='Atleta'):
+                    self.LeagueCalendarGrid[0,:]=self.DummyWidget
+                self.LeagueCalendarGrid[1,:]=self.WOD_filter
+                self.LeagueCalendarGrid[2,:]=self.BOX_filter
+                self.LeagueCalendarGrid[3,:]=self.Category_filter
+                self.LeagueCalendarGrid[4,:]=self.NombreMes
+                self.LeagueCalendarGrid[5:10,:]=self.Daysgrid
+                #self.LeagueCalendarGrid[14,:]=self.DummyWidget
+                if(calendario[semana][i].month==11):
+                    titles.append('Calendario')
+    
+                    children.append(self.LeagueCalendarGrid)    
 
                 
                 ColorActiveFilteredDays(self.DummyWidget)
  
     
- 
-    
- 
-    
- 
-    
- 
-    
- 
-    
- 
-    
- 
-    
+
                 self.grid.titles=titles
                 self.grid.children=children
     
                 for i, title in enumerate(self.grid.titles):
                     self.grid.set_title(i, title)
             
-       
+            else:
+                self.AvisoLogin.value="<b>Invalid user or password</b>"
+                #print('Invalis user or password')
         self.LogIn.on_click(checkAccess)     
         
    
         return self.grid
     def CreateNewUser(self,b):
-
+        #print(b.description)
+        owner=(b.description=='Crear Box')
         
         
         
@@ -1635,50 +2107,211 @@ class CrossTrainingLeague_ZGZ(object):
             with open(os.path.join(os.getcwd(),'DataBase.users'), 'rb') as fin:
                 self.DataBase=pickle.load(fin)
         userNamesList=list(self.DataBase.keys()) 
-        #UserDefinition_List=list(self.DataBase[userNamesList[0]]['Definition'].keys())
-        UserDefinition_List=self.UserDefinition_List
-        #self.UserBenchMarksDict=list(self.DataBase[userNamesList[0]]['BenchMarks'].keys())
-        if ((self.NewUserName.value not in userNamesList) and (self.DateOfBirth.value!=None)):
-            username=self.NewUserName.value
-            self.AvisoUserCreated.value="<b>User created, welcome to the league!</b>"
-            #print('User created: Welcome to the league (Alpha test)')
-            userNamesList.append(username)
-            self.DataBase[username]={}  
-            self.DataBase[username]['Definition']=dict.fromkeys(self.UserDefinition_List)
-            self.DataBase[username]['BenchMarks']=self.UserBenchMarksDict.copy()
-            self.DataBase[username]['WODpoints']=dict.fromkeys(self.WodNamesFlat)
-            self.DataBase[username]['WODpositions']=dict.fromkeys(self.WodNamesFlat)
-            self.DataBase[username]['WodResultsYoutube']=dict.fromkeys(self.WodNamesFlat)
-            self.DataBase[username]['Host']={}
-            self.DataBase[username]['Guest']={}
-            
-            UserDefinitionEntries=[[int((datetime.date.today()-self.DateOfBirth.value).days/365),self.Gender.value,self.heigth.value,self.weight.value,self.Box.value,self.Category.value]]
-            for w4,points in enumerate(self.WodNamesFlat.copy()):
-                self.DataBase[username]['WODpoints'][points]= 0
-                self.DataBase[username]['WODpositions'][points]= '---' 
-                self.DataBase[username]['WodResultsYoutube'][points[0]] = '---'  
-            # User definition
-            for w2,userEntry in enumerate(zip(self.UserDefinition_List.copy(),UserDefinitionEntries.copy()[0])):
-                self.DataBase[username]['Definition'][userEntry[0]]= userEntry[1]
-            # User becnhMarks 
-            for key in enumerate(self.UserBenchMarksDict.copy().keys()):
+        
+        if os.path.exists(os.path.join(os.getcwd(),'DataBaseOwners.users')):
+            with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'rb') as fin:
+                self.DataBaseOwners=pickle.load(fin)
+        ownerNamesList=list(self.DataBaseOwners.keys()) 
+        TotalNamesList=userNamesList+ownerNamesList
+        
+        
+        # Check the AccessCode for the selected box
+        config_file = configparser.ConfigParser()
+        config_file.read('BoxesDataBeta.config')
 
-                for w3,activity_value in enumerate(zip(self.DataBase[username]['BenchMarks'][key[1]],self.Inputs_BenchmarksInit.copy()[0][key[0]])):
-
-                    self.DataBase[username]['BenchMarks'][key[1]][activity_value[0]]=activity_value[1]
-            
-            self.DataBase[username]['WODmarks']=dict.fromkeys(self.WodNamesFlat)
-            self.DataBase[username]['RawWODmarks']=dict.fromkeys(self.WodNamesFlat)
-            
-            
-            with open(os.path.join(os.getcwd(),'DataBase.users'), 'wb') as fout:
-                pickle.dump(self.DataBase, fout)
-            
-            
+        codigos= ""
+        if(owner):
+            codigos = config_file[self.Box.value]['owneraccesscode'].split(",") if string else []
+            if(self.AccessCode.value in codigos and self.AccessCode.value!=''):
+                AccessCodeok=True
+           
+            else:
+                AccessCodeok=False
+        
         else:
-            print('User name already exists or Birth date is empty')
-       
-       
+            codigos = config_file[self.Box.value]['userAccessCodes'].split(",") if string else []
+            if(self.AccessCode.value in codigos and self.AccessCode.value!=''):
+                AccessCodeok=True
+           
+            else:
+                AccessCodeok=False
+
+
+        #UserDefinition_List=list(self.DataBase[userNamesList[0]]['Definition'].keys())
+        #UserDefinition_List=self.UserDefinition_List
+        # Check ojo format
+        l, u, p, d = 0, 0, 0, 0
+        ll, uu, pp, dd = 0, 0, 0, 0
+        s = self.NewOjo.value
+        capitalalphabets="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        smallalphabets="abcdefghijklmnopqrstuvwxyz"
+        specialchar="$@_"
+        digits="0123456789"
+        if (len(s) >= 8 and len(s) <20):
+            for i in s:
+         
+                # counting lowercase alphabets
+                if (i in smallalphabets):
+                    l+=1           
+         
+                # counting uppercase alphabets
+                if (i in capitalalphabets):
+                    u+=1           
+         
+                # counting digits
+                if (i in digits):
+                    d+=1           
+         
+                # counting the mentioned special characters
+                if(i in specialchar):
+                    p+=1       
+        if (l>=1 and u>=1 and p>=1 and d>=1 and l+p+u+d==len(s)):
+            ojoformatok=True
+        else:
+            ojoformatok=False
+            
+        if (len(self.NewUserName.value) >= 3 and len(self.NewUserName.value) <= 9):
+            for i in self.NewUserName.value:
+         
+                # counting lowercase alphabets
+                if (i in smallalphabets):
+                    ll+=1           
+         
+                # counting uppercase alphabets
+                if (i in capitalalphabets):
+                    uu+=1           
+         
+                # counting digits
+                if (i in digits):
+                    dd+=1           
+         
+                # counting the mentioned special characters
+                if(i in specialchar):
+                    pp+=1       
+        if (ll+pp+uu+dd==len(self.NewUserName.value)):
+            usernameformatok=True
+        else:
+            usernameformatok=False
+
+        #self.UserBenchMarksDict=list(self.DataBase[userNamesList[0]]['BenchMarks'].keys())
+        if (((self.NewUserName.value not in TotalNamesList) and (self.DateOfBirth.value!=None) and (self.NewOjo.value==self.ConfirmOjo.value) and ojoformatok and usernameformatok and AccessCodeok) or ((self.NewUserName.value not in TotalNamesList) and (self.NewOjo.value==self.ConfirmOjo.value) and ojoformatok and usernameformatok and AccessCodeok and owner)): #CurroSpot
+            
+            if(owner):
+                self.AvisoUserCreated.value="<b>Usuario creado, bienvenido!</b>"
+
+                config_file[self.Box.value]['owneraccesscode']=','
+                conf_file = 'BoxesDataBeta.config'
+                with open(conf_file+'.bak', 'w') as configfile:
+                    config_file.write(configfile)
+                if os.path.exists(conf_file):
+                   os.remove(conf_file)  # else rename won't work when target exists
+                os.rename(conf_file+'.bak',conf_file)
+                
+                username=self.NewUserName.value
+                ownerNamesList.append(username)
+                self.DataBaseOwners[username]={}  
+                self.DataBaseOwners[username]['HomeBox']=self.Box.value
+                self.DataBaseOwners[username]['Host']={}
+                ojos=bytes(self.NewOjo.value,'utf-8')
+                salt = bcrypt.gensalt()
+                hashed = bcrypt.hashpw(ojos, salt)
+                self.DataBaseOwners[username]['ojos']=hashed
+                
+                with open(os.path.join(os.getcwd(),'DataBaseOwners.users'), 'wb') as fout:
+                    pickle.dump(self.DataBaseOwners, fout)
+                
+            else:
+                # Delete the already used code and rewrite the access codes file
+                codigos.pop(np.where(np.asarray(codigos)==self.AccessCode.value)[0][0])
+                config_file[self.Box.value]['userAccessCodes']=','.join(codigos)
+                conf_file = 'BoxesDataBeta.config'
+                with open(conf_file+'.bak', 'w') as configfile:
+                    config_file.write(configfile)
+                if os.path.exists(conf_file):
+                   os.remove(conf_file)  # else rename won't work when target exists
+                os.rename(conf_file+'.bak',conf_file)
+            
+            
+            
+                username=self.NewUserName.value
+                
+                #print('User created: Welcome to the league (Alpha test)')
+                userNamesList.append(username)
+                self.DataBase[username]={}  
+                self.DataBase[username]['Definition']=dict.fromkeys(self.UserDefinition_List)
+                self.DataBase[username]['BenchMarks']=self.UserBenchMarksDict.copy()
+                self.DataBase[username]['WODpoints']=dict.fromkeys(self.WodNamesFlat)
+                self.DataBase[username]['WODpositions']=dict.fromkeys(self.WodNamesFlat)
+                self.DataBase[username]['WodResultsYoutube']=dict.fromkeys(self.WodNamesFlat)
+                #self.DataBase[username]['Host']={}
+                #self.DataBase[username]['Guest']={}
+                
+                UserDefinitionEntries=[[int((datetime.date.today()-self.DateOfBirth.value).days/365),self.Gender.value,self.heigth.value,self.weight.value,self.Box.value,self.Category.value]]
+                for w4,points in enumerate(self.WodNamesFlat.copy()):
+                    self.DataBase[username]['WODpoints'][points]= 0
+                    self.DataBase[username]['WODpositions'][points]= '---' 
+                    self.DataBase[username]['WodResultsYoutube'][points[0]] = '---'  
+                # User definition
+                for w2,userEntry in enumerate(zip(self.UserDefinition_List.copy(),UserDefinitionEntries.copy()[0])):
+                    self.DataBase[username]['Definition'][userEntry[0]]= userEntry[1]
+                # User becnhMarks 
+                for key in enumerate(self.UserBenchMarksDict.copy().keys()):
+    
+                    for w3,activity_value in enumerate(zip(self.DataBase[username]['BenchMarks'][key[1]],self.Inputs_BenchmarksInit.copy()[0][key[0]])):
+    
+                        self.DataBase[username]['BenchMarks'][key[1]][activity_value[0]]=activity_value[1]
+                
+                self.DataBase[username]['WODmarks']=dict.fromkeys(self.WodNamesFlat)
+                self.DataBase[username]['RawWODmarks']=dict.fromkeys(self.WodNamesFlat)
+                self.DataBase[username]['WODmarksCorrected']=dict.fromkeys(self.WodNamesFlat)
+                self.DataBase[username]['RawWODmarksCorrected']=dict.fromkeys(self.WodNamesFlat)
+                
+                
+    
+                ojos=bytes(self.NewOjo.value,'utf-8')
+                salt = bcrypt.gensalt()
+                hashed = bcrypt.hashpw(ojos, salt)
+    
+            
+                self.DataBase[username]['ojos']=hashed
+    
+                
+                
+                with open(os.path.join(os.getcwd(),'DataBase.users'), 'wb') as fout:
+                    pickle.dump(self.DataBase, fout)
+                
+                self.AvisoUserCreated.value="<b>Usuario creado, bienvenido a la liga!</b>"
+        else:
+            if owner:
+                if(self.NewUserName.value in TotalNamesList):
+                    self.AvisoUserCreated.value="<b>El nombre de usuario ya está en uso!</b>"
+                elif not(usernameformatok):  
+                    self.AvisoUserCreated.value="<b>El nombre de usuario debe de cumplir:<br>Longitud >3 y <10<br> Caracteres especiales aceptados [ _ o @ o $ ]!</b>"
+                elif not(ojoformatok):
+                    self.AvisoUserCreated.value="<b>La longitud de la contraseña ha de cumplir:<br> Longitud > 8 y <20 <br> Contener1 Maúscula,1 Número y 1 Carácter especial [ _ o @ o $ ]!</b>"
+                elif(self.NewOjo.value!=self.ConfirmOjo.value):
+                    self.AvisoUserCreated.value="<b>Las contraseñas no coinciden!</b>"
+
+                elif not(AccessCodeok):
+                    self.AvisoUserCreated.value="<b>Código no válido para esta cuenta de manager</b>"
+                
+            else:
+                if(self.NewUserName.value in TotalNamesList):
+                    self.AvisoUserCreated.value="<b>El nombre de usuario ya está en uso!</b>"
+                elif not(usernameformatok):  
+                    self.AvisoUserCreated.value="<b>El nombre de usuario debe de cumplir:<br>Longitud >3 y <10<br> Caracteres especiales aceptados [ _ o @ o $ ]!</b>"
+                elif not(ojoformatok):
+                    self.AvisoUserCreated.value="<b>La longitud de la contraseña ha de cumplir:<br> Longitud > 8 y <20<br> Contener1 Maúscula,1 Número y 1 Carácter especial [ _ o @ o $ ]!</b>"
+                elif(self.NewOjo.value!=self.ConfirmOjo.value):
+                    self.AvisoUserCreated.value="<b>Las contraseñas no coinciden!</b>"
+    
+                elif(self.DateOfBirth.value==None):
+                    self.AvisoUserCreated.value="<b>Fecha de nacimiento vacía</b>"
+                elif not(AccessCodeok):
+                    self.AvisoUserCreated.value="<b>El código de acceso utilizado no es correcto o ya ha sido utilizado</b> Revisa que el box elegido corresponde con el código utilizado</b>"
+                
+                
+
     # Parte para generar los plot de las estadísticas de Rms etc...
     def plotUserProfile(self,name,benchmarkType):
      
@@ -1720,14 +2353,19 @@ class CrossTrainingLeague_ZGZ(object):
          #for z,benchmarkType=self.UserBenchMarksDict):
          Total_DataPlot=[]  
          #for key in enumerate(self.UserBenchMarksDict.copy().keys()):
+         
          for key in enumerate(self.DataBase.keys()):
-             #print(key[1])
+
+             #if((self.DataBase[key[1]]['Definition']['Gender']==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Gender'])  and (self.DataBase[key[1]]['Definition']['Category']==self.DataBase[self.widgets_dict["UserName"].value]['Definition']['Category'])):
+                 
+                 #print(key[1])
              Total_DataPlot.append(list(self.DataBase[key[1]]['BenchMarks'][benchmarkType].values()))
          Total_DataPlot=pd.DataFrame(Total_DataPlot,columns=self.DataBase[key[1]]['BenchMarks'][benchmarkType].keys(),index=self.DataBase.keys())    
          self.mirar=Total_DataPlot
          # The attributes we want to use in our radar plot.
          factors = self.DataBase[key[1]]['BenchMarks'][benchmarkType].keys()
          Total_DataPlot_0to10=Total_DataPlot.copy()
+         
          # New scale should be from 0 to 100.
          new_max = 10
          new_min = 0
@@ -1748,12 +2386,13 @@ class CrossTrainingLeague_ZGZ(object):
            Total_DataPlot_0to10[factor] = Total_DataPlot[factor].apply(
                lambda x: (((x - min_val) * new_range) / val_range) + new_min)
          Data_Plot=[Total_DataPlot,Total_DataPlot_0to10]  
-         DataPlotName=['RawData','ScaledData']
+         DataPlotName=['','']
          
          self.mirar2=Data_Plot
          #for name in enumerate(self.DataBase.keys()): 
          
-         for i in range(len(Data_Plot)):
+         #for i in range(len(Data_Plot)):
+         for i in range(1):
 
              #labels=list(self.DataBase['Asier']['BenchMarks']['Strength'].keys())
              
